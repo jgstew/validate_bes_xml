@@ -1,7 +1,12 @@
 #!/usr/local/python
 """
-# pylint: disable=line-too-long
+Python module to validate BigFix XML files
 """
+
+# pylint: disable=no-else-return
+# pylint: disable=broad-except
+# pylint: disable=too-many-return-statements
+# pylint: disable=unused-variable
 
 import os
 import sys
@@ -13,6 +18,10 @@ except ImportError:
 
 
 def infer_xml_schema(xml_doc_obj):
+    """
+    This function determines which schema
+    should be used to validate the xml within the file
+    """
     try:
         # look for ".xsd" attribute on root tag
         for name, value in xml_doc_obj.getroot().items():
@@ -24,7 +33,8 @@ def infer_xml_schema(xml_doc_obj):
     try:
         # use name of root tag as the name of the xsd
         return xml_doc_obj.getroot().tag + ".xsd"
-    except:
+    except Exception as err:
+        print(err)
         print("WARNING: using default - couldn't fine root tag")
         return "BES.xsd"
 
@@ -59,7 +69,7 @@ def validate_xml(file_pathname, schema_pathnames):
         if inferred_schema_name in schema:
             # print( schema )
             inferred_schema_path = schema
-    
+
     if not inferred_schema_path:
         print("WARNING: no schema to validate " + file_pathname)
         return False
@@ -77,9 +87,7 @@ def validate_xml(file_pathname, schema_pathnames):
             return False
 
 
-def validate_all_files(
-    folder_path=".", file_extensions=(".bes", ".xml")
-):
+def validate_all_files(folder_path=".", file_extensions=(".bes", ".xml")):
     """Validate all xml files in a folder and subfolders"""
     # https://stackoverflow.com/questions/3964681/find-all-files-in-a-directory-with-extension-txt-in-python
 
@@ -102,16 +110,24 @@ def validate_all_files(
     print("%d errors found in %d xml files" % (count_errors, count_files))
     return count_errors
 
+
 def find_schema_files(folder_path=None):
+    """
+    This function finds schema files in the following:
+        - Folder passed in as parameter
+        - Current Working Directory
+        - Directory the python module is in
+        - Any `schemas` folders within the above
+    """
     # use set to get only unique folders
     folder_set = set()
     if folder_path:
         folder_set.add(folder_path)
-    folder_set.add( os.path.dirname(os.path.realpath(__file__)) )
-    folder_set.add( os.getcwd() )
+    folder_set.add(os.path.dirname(os.path.realpath(__file__)))
+    folder_set.add(os.getcwd())
 
     folder_array = []
-    
+
     for folder_item in folder_set:
         # for each unique folder, test if it exists
         if os.path.isdir(folder_item):
@@ -119,7 +135,7 @@ def find_schema_files(folder_path=None):
         # also add subfolder "schemas" if it exists
         if os.path.isdir(os.path.join(folder_item, "schemas")):
             folder_array.append(os.path.join(folder_item, "schemas"))
-    
+
     schema_files_set = set()
 
     for folder_item in folder_array:
@@ -130,10 +146,11 @@ def find_schema_files(folder_path=None):
                     # test xsd parsing
                     lxml.etree.XMLSchema(lxml.etree.parse(file_item_path))
                     schema_files_set.add(file_item_path)
-                except lxml.etree.XMLSchemaParseError as err:
+                except lxml.etree.XMLSchemaParseError:
                     print("WARNING: xsd did not parse: " + file_item_path)
 
     return schema_files_set
+
 
 def main(folder_path=".", file_extensions=(".bes", ".xml")):
     """Run this function by default"""
