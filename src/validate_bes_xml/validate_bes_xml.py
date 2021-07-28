@@ -3,7 +3,6 @@
 # pylint: disable=line-too-long
 """
 
-import io
 import os
 import sys
 
@@ -20,15 +19,14 @@ def infer_xml_schema(xml_doc_obj):
             if ".xsd" in value.lower():
                 return value
     except AttributeError:
-        return "ERROR: default? BES.xsd"
+        pass
 
     try:
         # use name of root tag as the name of the xsd
         return xml_doc_obj.getroot().tag + ".xsd"
     except:
-        return "ERROR: default? BES.xsd"
-
-    return "default? BES.xsd"
+        print("WARNING: using default - couldn't fine root tag")
+        return "BES.xsd"
 
 
 def validate_xml(file_pathname, schema_pathnames):
@@ -54,20 +52,29 @@ def validate_xml(file_pathname, schema_pathnames):
         print(err)
         return False
 
-    # TODO check if xml is valid to schema
-    print( file_pathname )
-
     inferred_schema_path = None
+    inferred_schema_name = infer_xml_schema(xml_doc_obj)
     # print( infer_xml_schema(xml_doc_obj) )
     for schema in schema_pathnames:
-        if infer_xml_schema(xml_doc_obj) in schema:
-            print( schema )
+        if inferred_schema_name in schema:
+            # print( schema )
             inferred_schema_path = schema
     
     if not inferred_schema_path:
         print("WARNING: no schema to validate " + file_pathname)
-
-    return True
+        return False
+    else:
+        # validate using schema:
+        try:
+            xml_schema = lxml.etree.XMLSchema(lxml.etree.parse(inferred_schema_path))
+            if xml_schema.validate(xml_doc_obj):
+                return True
+            else:
+                print(xml_schema.error_log)
+                return False
+        except Exception as err:
+            print(err)
+            return False
 
 
 def validate_all_files(
@@ -118,9 +125,9 @@ def find_schema_files(folder_path=None):
     for folder_item in folder_array:
         for file_item in os.listdir(folder_item):
             if file_item.lower().endswith(".xsd"):
-                # test xsd parsing
                 file_item_path = os.path.join(folder_item, file_item)
                 try:
+                    # test xsd parsing
                     lxml.etree.XMLSchema(lxml.etree.parse(file_item_path))
                     schema_files_set.add(file_item_path)
                 except lxml.etree.XMLSchemaParseError as err:
