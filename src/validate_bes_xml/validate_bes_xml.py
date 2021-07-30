@@ -92,7 +92,7 @@ def validate_xml(file_pathname, schema_pathnames):
             return False
 
 
-def validate_all_files(folder_path=".", file_extensions=(".bes",".ojo")):
+def validate_all_files(folder_path=".", file_extensions=(".bes", ".ojo")):
     """Validate all xml files in a folder and subfolders"""
     # https://stackoverflow.com/questions/3964681/find-all-files-in-a-directory-with-extension-txt-in-python
 
@@ -157,7 +157,7 @@ def find_schema_files(folder_path=None):
     return schema_files_set
 
 
-def main(folder_path=".", file_extensions=(".bes",".ojo")):
+def main(folder_path=".", file_extensions=(".bes", ".ojo")):
     """Run this function by default"""
 
     # run the validation, get the number of errors
