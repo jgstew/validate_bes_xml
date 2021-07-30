@@ -254,7 +254,7 @@
 				returned in	the	set	returned by	the	FilterRelevance.
 				
 				The	difference between a Drilldown node	and	a List node	is that	they have different children.  A	List 
-				node can have arbirtary	sub-List, sub-Drilldown, and sub-Folder	nodes, as defined in the domain	specification.
+				node can have arbitrary	sub-List, sub-Drilldown, and sub-Folder	nodes, as defined in the domain	specification.
 				A Drilldown	node will have children	as defined by the columns in the list that are shown, which	depends	on
 				the	type of	object.	 For example, a	fixlet Drilldown node will have	children that will let the user	filter further
 				on site, category, source release date,	etc.
@@ -307,7 +307,7 @@
 	<xs:complexType	name="CustomFilterNodeGroup">
 		<xs:annotation>
 			<xs:documentation>
-				The	CustomFiltersGroup expands into	mulitple nodes,	representing all custom	filters	defined	in the current domain.
+				The	CustomFiltersGroup expands into	multiple nodes,	representing all custom	filters	defined	in the current domain.
 				There should be	at least one CustomFiltersGroup	in each	domain so that the user	has	a way to view their	custom filters.
 			</xs:documentation>
 		</xs:annotation>
@@ -323,7 +323,7 @@
 	<xs:complexType name="DocumentNodeGroup">
 		<xs:annotation>
 			<xs:documentation>
-				The	DocumentNodeGroup expands into mulitple	nodes, each	node representing a	single document	for	each result	returned from
+				The	DocumentNodeGroup expands into multiple	nodes, each	node representing a	single document	for	each result	returned from
 				the	relevance expression, each of the same type.  
 			</xs:documentation>
 		</xs:annotation>
