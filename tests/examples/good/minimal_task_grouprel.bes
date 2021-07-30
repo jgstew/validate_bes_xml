@@ -1,0 +1,13 @@
+<!-- vim: set syntax=xml: -->
+<BES>
+    <Task>
+        <Title>1</Title>
+        <Description/>
+        <GroupRelevance>
+            <SearchComponentPropertyReference>
+                <SearchText/>
+                <Relevance/>
+            </SearchComponentPropertyReference>
+        </GroupRelevance>
+    </Task>
+</BES>

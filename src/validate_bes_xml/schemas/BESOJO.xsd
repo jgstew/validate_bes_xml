@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<xs:schema id="BESOJO" xmlns:xs="http://www.w3.org/2001/XMLSchema" attributeFormDefault="qualified" elementFormDefault="qualified">
+	<xs:element name="BES">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="Wizard">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="Charset" type="xs:normalizedString" minOccurs="0" />
+							<xs:element name="Title" type="xs:normalizedString" minOccurs="0" />
+							<xs:element name="DashboardID" type="xs:normalizedString" minOccurs="0" />
+							<xs:element name="UIHooks" minOccurs="0">
+								<xs:complexType>
+									<xs:attribute name="Menu" type="xs:normalizedString" use="optional" />
+									<xs:attribute name="NavBar" type="xs:normalizedString" use="optional" />
+									<xs:attribute name="LaunchType" use="optional" default="Dialog">
+										<xs:simpleType>
+											<xs:restriction base="xs:string">
+												<xs:enumeration value="Document" />
+												<xs:enumeration value="Dialog" />
+											</xs:restriction>
+										</xs:simpleType>
+									</xs:attribute>
+									<xs:attribute name="RequiresAuthoring" type="xs:boolean" default="true" use="optional" />
+									<xs:attribute name="PostEvans" type="xs:boolean" use="optional" />
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="DefaultPage" type="xs:string" />
+							<xs:element name="Page" maxOccurs="unbounded" >
+								<xs:complexType>
+									<xs:sequence minOccurs="0">
+										<xs:element name="Title" type="xs:normalizedString" minOccurs="0" />
+										<xs:element name="Head" type="xs:string" minOccurs="0" />
+										<xs:element name="HTML" type="xs:string" />
+									</xs:sequence>
+									<xs:attribute name="Name" type="xs:normalizedString" />
+									<xs:attribute name="Src" type="xs:normalizedString" />
+									<xs:attribute name="DocType" type="xs:normalizedString" />
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

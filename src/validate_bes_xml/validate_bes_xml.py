@@ -63,7 +63,12 @@ def validate_xml(file_pathname, schema_pathnames):
         return False
 
     inferred_schema_path = None
-    inferred_schema_name = infer_xml_schema(xml_doc_obj)
+    if ".ojo" in file_pathname.lower():
+        inferred_schema_name = "BESOJO.xsd"
+    elif ".BESDomain" in file_pathname.lower():
+        inferred_schema_name = "BESDomain.xsd"
+    else:
+        inferred_schema_name = infer_xml_schema(xml_doc_obj)
     # print( infer_xml_schema(xml_doc_obj) )
     for schema in schema_pathnames:
         if inferred_schema_name in schema:
@@ -87,7 +92,7 @@ def validate_xml(file_pathname, schema_pathnames):
             return False
 
 
-def validate_all_files(folder_path=".", file_extensions=(".bes", ".xml")):
+def validate_all_files(folder_path=".", file_extensions=(".bes",".ojo")):
     """Validate all xml files in a folder and subfolders"""
     # https://stackoverflow.com/questions/3964681/find-all-files-in-a-directory-with-extension-txt-in-python
 
@@ -148,11 +153,11 @@ def find_schema_files(folder_path=None):
                     schema_files_set.add(file_item_path)
                 except lxml.etree.XMLSchemaParseError:
                     print("WARNING: xsd did not parse: " + file_item_path)
-
+    # print(schema_files_set)
     return schema_files_set
 
 
-def main(folder_path=".", file_extensions=(".bes")):
+def main(folder_path=".", file_extensions=(".bes",".ojo")):
     """Run this function by default"""
 
     # run the validation, get the number of errors

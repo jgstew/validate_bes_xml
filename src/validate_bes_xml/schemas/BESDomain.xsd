@@ -1,0 +1,416 @@
+<?xml version="1.0"	encoding="UTF-8"?>
+<xs:schema id="BES"	xmlns:xs="http://www.w3.org/2001/XMLSchema"	attributeFormDefault="unqualified" elementFormDefault="unqualified">
+	<xs:element	name="Domains">
+		<xs:complexType>
+			<xs:sequence maxOccurs="unbounded">
+				<xs:element	name="Domain">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element name="Content" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>
+										Each DomainContent element needs to	return a set of	objects	that controls what objects are
+										shown in custom	filters	created	in this	domain.
+							  		</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+							  		<xs:group ref="DomainContent"/>
+								</xs:complexType>
+						  	</xs:element>
+							<xs:element	name="WebReports" minOccurs="0">
+								<xs:annotation>
+									<xs:documentation>
+										A WebReports element needs to return a set of web reports files	linked to the
+										domain.	Users with access to the domain	will see the associated	web	reports	tagged with
+										the	domain name. The Description element can provide a short overview of the domain	and
+										will be	shown in the domain	splash page.
+									</xs:documentation>
+								</xs:annotation>
+								<xs:complexType>
+							  		<xs:sequence>
+										<xs:element	name="Description" type="xs:normalizedString" minOccurs="0"	/>
+										<xs:element	name="DefaultWebReport"	type="xs:normalizedString" minOccurs="0" />
+										<xs:element	name="WebReport" type="xs:normalizedString"	minOccurs="0" maxOccurs="unbounded"	/>
+							  		</xs:sequence>
+									<xs:attribute name="SortOrder" type="SortOrder" use="optional" />
+								 	<xs:attribute name="Icon"	type="xs:normalizedString" use="required" />
+								</xs:complexType>
+							</xs:element>
+							<xs:element name="Console" minOccurs="0">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element	name="DomainBar" type="DomainBar" />
+									</xs:sequence>
+									<xs:attribute name="SortOrder" type="SortOrder" use="optional" />
+									<xs:attribute name="Icon" type="xs:normalizedString" use="optional" />
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+						<xs:attribute name="ID"	type="DomainID"	use="required" />
+						<xs:attribute name="Title" type="xs:normalizedString" use="required" />
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+  <xs:complexType name="DomainBar">
+    <xs:sequence>
+      <xs:element name="Condition" type="ConditionRelevance" minOccurs="0" maxOccurs="1" />
+      <xs:choice maxOccurs="unbounded">
+        <xs:element name="Tree">
+          <xs:annotation>
+            <xs:documentation>
+              A Tree in the Domain Bar is	the	main navigation	element	for	finding	content	in the
+              domain.	 There can be multiple Tree	elements to	visually separate distinct sets	of
+              tree nodes.
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:complexContent>
+              <xs:extension base="DomainBarPaneItem">
+                <xs:group ref="NodeGroup" minOccurs="0" maxOccurs="unbounded" />
+              </xs:extension>
+            </xs:complexContent>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="Dashboard">
+          <xs:annotation>
+            <xs:documentation>
+              A Dashboard	in the Domain Bar can be used for having any non-Tree content that
+              can	be implemented using HTML/javascript and is	important enough in	the	domain
+              to always be present in	the	Domain Bar.	 Example uses are for filtering	what
+              nodes appear in	the	domain tree, or	for	prominent notifications.
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:complexContent>
+              <xs:extension base="DomainBarPaneItem">
+                <xs:attributeGroup ref="OjoAttribute" />
+              </xs:extension>
+            </xs:complexContent>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+    </xs:sequence>
+  </xs:complexType>
+
+	<xs:attributeGroup name="OjoAttribute">
+		<xs:annotation>
+			<xs:documentation>
+				An ojo points to a wizard/dashboard	.ojo file containing content conforming	to BESOJO.xsd.
+				If Debug is	true or	there is no	external site context for the current domain specification,
+				then we	first attempt to load the Ojo as an	absolute path and then if it doesn't exist look
+				for	it in the Console reference	directory.	If there is	a site context for the current domain 
+				specification, then	we expect the Ojo to be	a file name	in the site	directory.				
+			</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="Ojo" type="xs:normalizedString"	/>
+		<xs:attribute name="Debug" type="xs:boolean" />
+	</xs:attributeGroup>
+
+	<xs:simpleType name="ConditionRelevance">
+		<xs:annotation>
+			<xs:documentation>
+				Domain Bars, Domain Bar Pane	Items and Domain Tree Nodes	can	optionally have	condition relevance	
+				defined	for	them.  This session relevance expression controls whether the particular element is visible
+				or	not.  If the condition is ever changed, the relevance is	reevaluated	such that the element can 
+				change visibility.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:restriction	base="xs:normalizedString" />
+	</xs:simpleType>
+
+	<xs:simpleType name="SortOrder">
+		<xs:annotation>
+			<xs:documentation>
+				Domains, Domain	Bar	Pane Items,	and	Domain Tree	Nodes, can all specify sort	orders.	 This is a floating	point
+				number that	defines	where an item is placed	relative to	sibling	items.	A lower	SortOrder means	being placed
+				before other items in the Domain Bar, Domain Bar Pane, or Domain Tree.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:restriction	base="xs:double" />
+	</xs:simpleType>
+
+	<xs:complexType	name="DomainBarPaneItem">
+		<xs:sequence>
+			<xs:element	name="Condition" type="ConditionRelevance" minOccurs="0" />
+		</xs:sequence>
+		<xs:attribute name="Title" type="xs:normalizedString" use="optional" />
+		<xs:attribute name="ShowCaption" type="xs:boolean" use="optional" />
+		<xs:attribute name="Expandable"	type="xs:boolean" use="optional" />
+		<xs:attribute name="SortOrder" type="SortOrder"	use="optional" />
+	</xs:complexType>
+
+	<!-- Domain	Content	-->
+
+	<xs:group name="DomainContent">
+		<xs:all>
+			<xs:element name="Fixlet" type="xs:normalizedString" minOccurs="0" />
+			<xs:element name="Baseline" type="xs:normalizedString" minOccurs="0" />
+			<xs:element	name="Analysis" type="xs:normalizedString" minOccurs="0" />
+			<xs:element	name="Action" type="xs:normalizedString" minOccurs="0" />
+			<xs:element	name="Computer" type="xs:normalizedString" minOccurs="0" />
+			<xs:element	name="ComputerGroup" type="xs:normalizedString"	minOccurs="0" />
+			<xs:element name="LDAPDirectory" type="xs:normalizedString" minOccurs="0" />
+			<xs:element	name="User" type="xs:normalizedString" minOccurs="0" />
+			<xs:element name="Role" type="xs:normalizedString" minOccurs="0" />
+			<xs:element name="Site" type="xs:normalizedString" minOccurs="0" />
+			<xs:element	name="UnmanagedAsset" type="xs:normalizedString" minOccurs="0" />
+			<xs:element name="Wizard" type="xs:normalizedString" minOccurs="0" />
+			<xs:element name="WebUIApp" type="xs:normalizedString" minOccurs="0" />
+		</xs:all>
+	</xs:group>
+
+	<!-- Tree Types	-->
+
+	<xs:group name="NodeGroup">
+		<xs:choice>
+			<xs:element name="Folder" type="UntypedFolderNode" />
+			<xs:element name="List" type="UntypedListNode" />
+			<xs:element name="Drilldown" type="UntypedDrilldownNode" />
+			<xs:element name="CustomFilters" type="CustomFilterNodeGroup" />
+			<xs:element name="Documents" type="UntypedDocumentNodeGroup" />
+			<xs:element name="MixedContentList" type="UntypedMixedContentListNode" />
+		</xs:choice>
+	</xs:group>
+
+	<xs:group name="TypedNodeGroup">
+		<xs:choice>
+			<xs:element	name="Folder" type="TypedFolderNode" />
+			<xs:element	name="List"	type="TypedListNode" />
+			<xs:element name="Drilldown" type="TypedDrilldownNode" />
+			<xs:element name="CustomFilters" type="CustomFilterNodeGroup" />
+			<xs:element name="Documents" type="TypedDocumentNodeGroup" />
+			<xs:element name="MixedContentList" type="TypedMixedContentListNode" />
+		</xs:choice>
+	</xs:group>
+
+	<xs:complexType	name="Node">
+		<xs:sequence>
+			<xs:element	name="Condition" type="ConditionRelevance" minOccurs="0" />
+		</xs:sequence>
+		<xs:attribute name="SortOrder" type="SortOrder"	/>
+		<xs:attribute name="DefaultSelection" type="xs:boolean">
+			<xs:annotation>
+				<xs:documentation>
+					The	first tree node	in a domain	that has a DefaultSelection	of true	will be	selected the first time
+					the	domain is selected in the Domain Bar.
+				</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+
+	<xs:complexType	name="UntypedFolderNode">
+		<xs:complexContent>
+			<xs:extension base="Node">
+				<xs:group ref="NodeGroup" minOccurs="0"	maxOccurs="unbounded" />
+				<xs:attribute name="Title" type="xs:normalizedString" use="required" />
+				<xs:attribute name="InitiallyExpanded" type="xs:boolean" default="false" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType	name="TypedFolderNode">
+		<xs:complexContent>
+			<xs:extension base="Node">
+				<xs:group ref="TypedNodeGroup" minOccurs="0" maxOccurs="unbounded" />
+				<xs:attribute name="Title" type="xs:normalizedString" use="required" />
+				<xs:attribute name="InitiallyExpanded" type="xs:boolean" default="false" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType	name="ListNode">
+		<xs:annotation>
+			<xs:documentation>
+				FilterRelevance	must return	a set of bes objects.  When	the	user clicks	on this	tree node, 
+				a list containing all the objects in the set will be shown,	with the first item	in the list
+				previewed below	the	list.
+				
+				A list node	can	contain	List, Drilldown, or	Folder nodes as	children.  All descendent nodes
+				of this	node must be of	the	same object	type, and are filtered according to	this node's	FilterRelevance, 
+				in addition	to their own FilterRelevance.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="Node">
+				<xs:sequence>
+					<xs:element	name="FilterRelevance" type="xs:normalizedString" />
+		 			<xs:group ref="TypedNodeGroup" minOccurs="0" maxOccurs="unbounded" />
+				</xs:sequence>
+				<xs:attribute name="Title" type="xs:normalizedString" use="required" />
+				<xs:attribute name="InitiallyExpanded" type="xs:boolean" default="false" />
+				<xs:attribute name="HideIfEmpty" type="xs:boolean" default="false" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType	name="DrilldownNode">
+		<xs:annotation>
+			<xs:documentation>
+				A Drilldown	node is	like a list	node in	that when the user clicks on it, a list	of objects is
+				displayed with the first object	previewed below	the	list.  The objects shown in	the	list are those
+				returned in	the	set	returned by	the	FilterRelevance.
+				
+				The	difference between a Drilldown node	and	a List node	is that	they have different children.  A	List 
+				node can have arbirtary	sub-List, sub-Drilldown, and sub-Folder	nodes, as defined in the domain	specification.
+				A Drilldown	node will have children	as defined by the columns in the list that are shown, which	depends	on
+				the	type of	object.	 For example, a	fixlet Drilldown node will have	children that will let the user	filter further
+				on site, category, source release date,	etc.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="Node">
+				<xs:sequence>
+					<xs:element	name="FilterRelevance" type="xs:normalizedString" />
+				</xs:sequence>
+				<xs:attribute name="Title" type="xs:normalizedString" use="required" />
+				<xs:attribute name="InitiallyExpanded" type="xs:boolean" default="false" />
+				<xs:attribute name="HideIfEmpty" type="xs:boolean" default="false" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType	name="UntypedListNode">
+		<xs:complexContent>
+			<xs:extension base="ListNode">
+				<xs:attribute name="Type" type="ObjectType"	use="required" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType	name="TypedListNode">
+		<xs:complexContent>
+			<xs:extension base="ListNode">
+				<xs:attribute name="Type" type="ObjectType"	use="optional" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType	name="UntypedDrilldownNode">
+		<xs:complexContent>
+			<xs:extension base="DrilldownNode">
+				<xs:attribute name="Type" type="ObjectType"	use="required" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType	name="TypedDrilldownNode">
+		<xs:complexContent>
+			<xs:extension base="DrilldownNode">
+				<xs:attribute name="Type" type="ObjectType"	use="optional" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType	name="CustomFilterNodeGroup">
+		<xs:annotation>
+			<xs:documentation>
+				The	CustomFiltersGroup expands into	mulitple nodes,	representing all custom	filters	defined	in the current domain.
+				There should be	at least one CustomFiltersGroup	in each	domain so that the user	has	a way to view their	custom filters.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="Node">
+				<xs:sequence>
+					<xs:element	name="Relevance" type="xs:normalizedString"	/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:complexType name="DocumentNodeGroup">
+		<xs:annotation>
+			<xs:documentation>
+				The	DocumentNodeGroup expands into mulitple	nodes, each	node representing a	single document	for	each result	returned from
+				the	relevance expression, each of the same type.  
+			</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="Node">
+				<xs:sequence>
+					<xs:element name="Relevance" type="xs:normalizedString" />
+				</xs:sequence>
+				<xs:attribute name="Title" type="xs:normalizedString" use="optional" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+  
+	<xs:complexType name="UntypedDocumentNodeGroup">
+		<xs:complexContent>
+			<xs:extension base="DocumentNodeGroup">
+				<xs:attribute name="Type" type="ObjectType"	use="required" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+  
+	<xs:complexType name="TypedDocumentNodeGroup">
+		<xs:complexContent>
+			<xs:extension base="DocumentNodeGroup">
+				<xs:attribute name="Type" type="ObjectType"	use="optional" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	
+	<xs:complexType name="UntypedMixedContentListNode">
+		<xs:complexContent>
+			<xs:extension base="Node">
+				<xs:sequence>
+					<xs:element	name="Content">
+						<xs:complexType>
+							<xs:group ref="DomainContent"/>
+						</xs:complexType>
+					</xs:element>
+		 			<xs:group ref="NodeGroup" minOccurs="0" maxOccurs="unbounded" />
+				</xs:sequence>
+				<xs:attribute name="Title" type="xs:normalizedString" use="required" />
+				<xs:attribute name="InitiallyExpanded" type="xs:boolean" default="false" />
+				<xs:attribute name="HideIfEmpty" type="xs:boolean" default="false" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	
+	<xs:complexType name="TypedMixedContentListNode">
+		<xs:complexContent>
+			<xs:extension base="Node">
+				<xs:sequence>
+					<xs:element	name="Content">
+						<xs:complexType>
+							<xs:group ref="DomainContent"/>
+						</xs:complexType>
+					</xs:element>
+		 			<xs:group ref="TypedNodeGroup" minOccurs="0" maxOccurs="unbounded" />
+				</xs:sequence>
+				<xs:attribute name="Title" type="xs:normalizedString" use="required" />
+				<xs:attribute name="InitiallyExpanded" type="xs:boolean" default="false" />
+				<xs:attribute name="HideIfEmpty" type="xs:boolean" default="false" />
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+
+	<xs:simpleType name="ObjectType">
+		<xs:restriction	base="xs:string">
+			<xs:enumeration value="Fixlet" />
+			<xs:enumeration value="Baseline" />
+			<xs:enumeration	value="Analysis" />
+			<xs:enumeration	value="Action" />
+			<xs:enumeration	value="Computer" />
+			<xs:enumeration	value="Computer	Group" />
+			<xs:enumeration	value="LDAP Directory" />
+			<xs:enumeration	value="User" />
+			<xs:enumeration value="Unmanaged Asset" />
+			<xs:enumeration value="Site" />
+			<xs:enumeration value="Role" />
+			<xs:enumeration value="Wizard" />
+			<xs:enumeration value="WebUI App" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="DomainID">
+		<xs:restriction	base="xs:string">
+			<xs:pattern	value="\p{IsBasicLatin}{4}"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+</xs:schema>
