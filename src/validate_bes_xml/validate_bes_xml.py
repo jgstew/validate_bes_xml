@@ -7,6 +7,7 @@ Python module to validate BigFix XML files
 # pylint: disable=broad-except
 # pylint: disable=too-many-return-statements
 # pylint: disable=unused-variable
+# pylint: disable=too-many-branches
 
 import os
 import sys
