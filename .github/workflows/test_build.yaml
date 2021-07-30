@@ -42,6 +42,6 @@ jobs:
         run: echo "::set-output name=wheelfile::$(find "dist" -type f -name "*.whl")"
       - name: Test pip install of wheel
         shell: bash
-        run: pip install $(steps.getwheelfile.outputs.wheelfile)
+        run: pip install $((steps.getwheelfile.outputs.wheelfile))
       - name: Run test_pip
         run: python tests/tests.py --test_pip
