@@ -152,7 +152,7 @@ def find_schema_files(folder_path=None):
     return schema_files_set
 
 
-def main(folder_path=".", file_extensions=(".bes", ".xml")):
+def main(folder_path=".", file_extensions=(".bes")):
     """Run this function by default"""
 
     # run the validation, get the number of errors
