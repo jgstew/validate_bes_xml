@@ -6,6 +6,7 @@ on:
     paths:
       - "**.py"
       - "setup.cfg"
+      - "MANIFEST.in"
       - "pyproject.toml"
       - "requirements.txt"
       - ".github/workflows/test_build.yaml"
@@ -14,6 +15,7 @@ on:
     paths:
       - "**.py"
       - "setup.cfg"
+      - "MANIFEST.in"
       - "pyproject.toml"
       - "requirements.txt"
       - ".github/workflows/test_build.yaml"
