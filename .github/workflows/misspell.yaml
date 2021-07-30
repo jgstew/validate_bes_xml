@@ -11,6 +11,7 @@ jobs:
       - name: Check out code.
         uses: actions/checkout@v1
       - name: misspell
+        if: ${{ !env.ACT }}
         uses: reviewdog/action-misspell@v1
         with:
           github_token: ${{ secrets.github_token }}
