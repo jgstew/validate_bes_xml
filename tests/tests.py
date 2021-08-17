@@ -33,6 +33,9 @@ else:
     assert "src" in validate_bes_xml.__file__
 
 
+# must be 4 valid schema files:
+assert 4 == len(validate_bes_xml.validate_bes_xml.find_schema_files())
+
 # run the script
 num_errors = validate_bes_xml.validate_bes_xml.validate_all_files()
 
