@@ -45,3 +45,7 @@ jobs:
         run: pip install ${{ steps.getwheelfile.outputs.wheelfile }}
       - name: Run test_pip
         run: python tests/tests.py --test_pip
+      - name: Install pytest
+        run: pip install pytest pytest-isort pytest-flakes
+      - name: Run pytest
+        run: pytest -v
