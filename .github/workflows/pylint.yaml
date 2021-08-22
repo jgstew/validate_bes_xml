@@ -26,8 +26,8 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.8
-      - name: Install pylint
-        run: pip install pylint
+      - name: Install pylint pytest
+        run: pip install pylint pytest
       - name: Install requirements
         run: pip install -r requirements.txt
       - name: pylint files
