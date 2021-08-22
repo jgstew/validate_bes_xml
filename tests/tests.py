@@ -34,7 +34,7 @@ else:
 
 
 # must be 4 valid schema files:
-assert 4 == len(validate_bes_xml.validate_bes_xml.find_schema_files())
+assert len(validate_bes_xml.validate_bes_xml.find_schema_files()) == 4
 
 # run the script
 num_errors = validate_bes_xml.validate_bes_xml.validate_all_files()

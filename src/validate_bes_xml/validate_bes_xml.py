@@ -84,8 +84,12 @@ def find_schema_files(folder_path=None):
 SCHEMA_FILES = find_schema_files()
 
 
-def validate_xml(file_pathname, schema_pathnames=SCHEMA_FILES):
+def validate_xml(file_pathname, schema_pathnames=None):
     """This will validate a single XML file against the schema"""
+
+    if not schema_pathnames:
+        schema_pathnames = SCHEMA_FILES
+
     # parse xml
     try:
         xml_doc_obj = lxml.etree.parse(file_pathname)
