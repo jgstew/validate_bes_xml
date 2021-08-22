@@ -25,7 +25,7 @@ def infer_xml_schema(xml_doc_obj):
     """
     try:
         # look for ".xsd" attribute on root tag
-        for name, value in xml_doc_obj.getroot().items():
+        for _name, value in xml_doc_obj.getroot().items():
             if ".xsd" in value.lower():
                 return value
     except AttributeError:
@@ -34,87 +34,10 @@ def infer_xml_schema(xml_doc_obj):
     try:
         # use name of root tag as the name of the xsd
         return xml_doc_obj.getroot().tag + ".xsd"
-    except Exception as err:
+    except BaseException as err:
         print(err)
         print("WARNING: using default - couldn't fine root tag")
         return "BES.xsd"
-
-
-def validate_xml(file_pathname, schema_pathnames):
-    """This will validate a single XML file against the schema"""
-    # parse xml
-    try:
-        xml_doc_obj = lxml.etree.parse(file_pathname)
-        # print('XML well formed, syntax ok.')
-
-    # check for file IO error
-    except IOError:
-        print("Invalid File: %s" % file_pathname)
-        return False
-
-    # check for XML syntax errors
-    except lxml.etree.XMLSyntaxError as err:
-        print("XML Syntax Error in: %s" % file_pathname)
-        print(err)
-        return False
-
-    # all other errors
-    except Exception as err:  # pylint: disable=broad-except
-        print(err)
-        return False
-
-    inferred_schema_path = None
-    if ".ojo" in file_pathname.lower():
-        inferred_schema_name = "BESOJO.xsd"
-    elif ".BESDomain" in file_pathname.lower():
-        inferred_schema_name = "BESDomain.xsd"
-    else:
-        inferred_schema_name = infer_xml_schema(xml_doc_obj)
-    # print( infer_xml_schema(xml_doc_obj) )
-    for schema in schema_pathnames:
-        if inferred_schema_name in schema:
-            # print( schema )
-            inferred_schema_path = schema
-
-    if not inferred_schema_path:
-        print("WARNING: no schema to validate " + file_pathname)
-        return False
-    else:
-        # validate using schema:
-        try:
-            xml_schema = lxml.etree.XMLSchema(lxml.etree.parse(inferred_schema_path))
-            if xml_schema.validate(xml_doc_obj):
-                return True
-            else:
-                print(xml_schema.error_log)
-                return False
-        except Exception as err:
-            print(err)
-            return False
-
-
-def validate_all_files(folder_path=".", file_extensions=(".bes", ".ojo")):
-    """Validate all xml files in a folder and subfolders"""
-    # https://stackoverflow.com/questions/3964681/find-all-files-in-a-directory-with-extension-txt-in-python
-
-    count_errors = 0
-    count_files = 0
-    schema_pathnames = find_schema_files()
-
-    for root, dirs, files in os.walk(folder_path):  # pylint: disable=unused-variable
-        for file in files:
-            # do not scan within .git folder
-            if not root.startswith((".git", "./.git")):
-                # process all files ending with `file_extensions`
-                if file.lower().endswith(file_extensions):
-                    count_files = count_files + 1
-                    file_path = os.path.join(root, file)
-                    result = validate_xml(file_path, schema_pathnames)
-                    if not result:
-                        count_errors = count_errors + 1
-
-    print("%d errors found in %d xml files" % (count_errors, count_files))
-    return count_errors
 
 
 def find_schema_files(folder_path=None):
@@ -156,6 +79,86 @@ def find_schema_files(folder_path=None):
                     print("WARNING: xsd did not parse: " + file_item_path)
     # print(schema_files_set)
     return schema_files_set
+
+
+SCHEMA_FILES = find_schema_files()
+
+
+def validate_xml(file_pathname, schema_pathnames=SCHEMA_FILES):
+    """This will validate a single XML file against the schema"""
+    # parse xml
+    try:
+        xml_doc_obj = lxml.etree.parse(file_pathname)
+        # print('XML well formed, syntax ok.')
+
+    # check for file IO error
+    except IOError:
+        print("Invalid File: %s" % file_pathname)
+        return False
+
+    # check for XML syntax errors
+    except lxml.etree.XMLSyntaxError as err:
+        print("XML Syntax Error in: %s" % file_pathname)
+        print(err)
+        return False
+
+    # all other errors
+    except BaseException as err:  # pylint: disable=broad-except
+        print(err)
+        return False
+
+    inferred_schema_path = None
+    if ".ojo" in file_pathname.lower():
+        inferred_schema_name = "BESOJO.xsd"
+    elif ".BESDomain" in file_pathname.lower():
+        inferred_schema_name = "BESDomain.xsd"
+    else:
+        inferred_schema_name = infer_xml_schema(xml_doc_obj)
+    # print( infer_xml_schema(xml_doc_obj) )
+    for schema in schema_pathnames:
+        if inferred_schema_name in schema:
+            # print( schema )
+            inferred_schema_path = schema
+
+    if not inferred_schema_path:
+        print("WARNING: no schema to validate " + file_pathname)
+        return False
+    else:
+        # validate using schema:
+        try:
+            xml_schema = lxml.etree.XMLSchema(lxml.etree.parse(inferred_schema_path))
+            if xml_schema.validate(xml_doc_obj):
+                return True
+            else:
+                print(xml_schema.error_log)
+                return False
+        except BaseException as err:
+            print(err)
+            return False
+
+
+def validate_all_files(folder_path=".", file_extensions=(".bes", ".ojo")):
+    """Validate all xml files in a folder and subfolders"""
+    # https://stackoverflow.com/questions/3964681/find-all-files-in-a-directory-with-extension-txt-in-python
+
+    count_errors = 0
+    count_files = 0
+    schema_pathnames = SCHEMA_FILES
+
+    for root, _dirs, files in os.walk(folder_path):  # pylint: disable=unused-variable
+        for file in files:
+            # do not scan within .git folder
+            if not root.startswith((".git", "./.git")):
+                # process all files ending with `file_extensions`
+                if file.lower().endswith(file_extensions):
+                    count_files = count_files + 1
+                    file_path = os.path.join(root, file)
+                    result = validate_xml(file_path, schema_pathnames)
+                    if not result:
+                        count_errors = count_errors + 1
+
+    print("%d errors found in %d xml files" % (count_errors, count_files))
+    return count_errors
 
 
 def main(folder_path=".", file_extensions=(".bes", ".ojo")):
