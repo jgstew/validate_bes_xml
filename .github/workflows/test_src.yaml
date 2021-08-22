@@ -40,3 +40,7 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run test_self
         run: python tests/tests.py
+      - name: Install pytest
+        run: pip install pytest pytest-isort pytest-flakes
+      - name: Run pytest
+        run: pytest -v

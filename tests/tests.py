@@ -42,7 +42,7 @@ num_errors = validate_bes_xml.validate_bes_xml.validate_all_files()
 try:
     assert num_errors == 2
 except AssertionError:
-    print("Error: Tests failed")
+    print("ERROR: Tests failed")
     sys.exit(num_errors)
 
 # tests pass, return 0:
