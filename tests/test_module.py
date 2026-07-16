@@ -212,6 +212,23 @@ def test_validate_xml_unknown_schema_warns(tmp_path, capsys):
     assert vbx.validate_xml(str(unknown_file)) is False
     captured = capsys.readouterr()
     assert "no schema to validate" in captured.out
+    # the warning should say which schema name it looked for
+    assert "TotallyUnknownRootTag.xsd" in captured.out
+
+
+def test_validate_xml_schema_failure_reports_details(capsys):
+    """a schema validation failure should say which schema was used,
+    which file failed, and the line and reason for each error"""
+    bad_file = os.path.join(BAD_EXAMPLES_DIR, "example_bes.bes")
+
+    assert vbx.validate_xml(bad_file) is False
+    captured = capsys.readouterr()
+    assert f"Schema Validation Error in: {bad_file}" in captured.out
+    assert "validated against schema:" in captured.out
+    assert "BES.xsd" in captured.out
+    # the <BES> root tag is on line 2 of example_bes.bes
+    assert "Line 2:" in captured.out
+    assert "Missing child element(s)" in captured.out
 
 
 def test_validate_xml_ojo_extension_is_case_insensitive(tmp_path):

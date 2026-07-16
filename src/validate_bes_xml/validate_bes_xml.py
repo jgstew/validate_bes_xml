@@ -125,7 +125,10 @@ def validate_xml(file_pathname, schema_pathnames=None):
             inferred_schema_path = schema
 
     if not inferred_schema_path:
-        print("WARNING: no schema to validate " + file_pathname)
+        print(
+            "WARNING: no schema to validate %s (inferred schema name: %s)"
+            % (file_pathname, inferred_schema_name)
+        )
         return False
     else:
         # validate using schema:
@@ -134,7 +137,10 @@ def validate_xml(file_pathname, schema_pathnames=None):
             if xml_schema.validate(xml_doc_obj):
                 return True
             else:
-                print(xml_schema.error_log)
+                print("Schema Validation Error in: %s" % file_pathname)
+                print("  validated against schema: %s" % inferred_schema_path)
+                for error in xml_schema.error_log:
+                    print("  Line %s: %s" % (error.line, error.message))
                 return False
         except BaseException as err:
             print(err)
