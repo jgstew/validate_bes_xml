@@ -3,7 +3,7 @@
 	<Task>
 		<Title>Install: Fixlet Debugger - 10.0.4.32 - Windows</Title>
 		<Description><![CDATA[
-            
+
         ]]></Description>
 		<Relevance>/* Windows Only */ windows of operating system</Relevance>
 		<Relevance><![CDATA[/* Windows XP or Higher */ version of operating system >= "5.1"]]></Relevance>

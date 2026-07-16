@@ -1,7 +1,5 @@
 #!/usr/local/python
-"""
-Python module to validate BigFix XML files
-"""
+"""Python module to validate BigFix XML files."""
 
 # pylint: disable=no-else-return
 # pylint: disable=broad-except
@@ -21,7 +19,7 @@ except ImportError:
 def infer_xml_schema(xml_doc_obj):
     """
     This function determines which schema
-    should be used to validate the xml within the file
+    should be used to validate the xml within the file.
     """
     try:
         # look for ".xsd" attribute on root tag
@@ -43,7 +41,8 @@ def infer_xml_schema(xml_doc_obj):
 def find_schema_files(folder_path=None):
     """
     This function finds schema files in the following:
-        - Folder passed in as parameter
+        - Folder passed in as parameter.
+
         - Current Working Directory
         - Directory the python module is in
         - Any `schemas` folders within the above
@@ -85,7 +84,7 @@ SCHEMA_FILES = find_schema_files()
 
 
 def validate_xml(file_pathname, schema_pathnames=None):
-    """This will validate a single XML file against the schema"""
+    """This will validate a single XML file against the schema."""
 
     if not schema_pathnames:
         schema_pathnames = SCHEMA_FILES
@@ -96,7 +95,7 @@ def validate_xml(file_pathname, schema_pathnames=None):
         # print('XML well formed, syntax ok.')
 
     # check for file IO error
-    except IOError:
+    except OSError:
         print("Invalid File: %s" % file_pathname)
         return False
 
@@ -140,7 +139,7 @@ def validate_xml(file_pathname, schema_pathnames=None):
                 print("Schema Validation Error in: %s" % file_pathname)
                 print("  validated against schema: %s" % inferred_schema_path)
                 for error in xml_schema.error_log:
-                    print("  Line %s: %s" % (error.line, error.message))
+                    print(f"  Line {error.line}: {error.message}")
                 return False
         except BaseException as err:
             print(err)
@@ -148,7 +147,7 @@ def validate_xml(file_pathname, schema_pathnames=None):
 
 
 def validate_all_files(folder_path=".", file_extensions=(".bes", ".ojo")):
-    """Validate all xml files in a folder and subfolders"""
+    """Validate all xml files in a folder and subfolders."""
     # https://stackoverflow.com/questions/3964681/find-all-files-in-a-directory-with-extension-txt-in-python
 
     count_errors = 0
@@ -172,7 +171,7 @@ def validate_all_files(folder_path=".", file_extensions=(".bes", ".ojo")):
 
 
 def main(folder_path=".", file_extensions=(".bes", ".ojo")):
-    """Run this function by default"""
+    """Run this function by default."""
 
     # run the validation, get the number of errors
     count_errors = validate_all_files(folder_path, file_extensions)

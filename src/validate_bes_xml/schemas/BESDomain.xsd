@@ -101,8 +101,8 @@
 				An ojo points to a wizard/dashboard	.ojo file containing content conforming	to BESOJO.xsd.
 				If Debug is	true or	there is no	external site context for the current domain specification,
 				then we	first attempt to load the Ojo as an	absolute path and then if it doesn't exist look
-				for	it in the Console reference	directory.	If there is	a site context for the current domain 
-				specification, then	we expect the Ojo to be	a file name	in the site	directory.				
+				for	it in the Console reference	directory.	If there is	a site context for the current domain
+				specification, then	we expect the Ojo to be	a file name	in the site	directory.
 			</xs:documentation>
 		</xs:annotation>
 		<xs:attribute name="Ojo" type="xs:normalizedString"	/>
@@ -112,9 +112,9 @@
 	<xs:simpleType name="ConditionRelevance">
 		<xs:annotation>
 			<xs:documentation>
-				Domain Bars, Domain Bar Pane	Items and Domain Tree Nodes	can	optionally have	condition relevance	
+				Domain Bars, Domain Bar Pane	Items and Domain Tree Nodes	can	optionally have	condition relevance
 				defined	for	them.  This session relevance expression controls whether the particular element is visible
-				or	not.  If the condition is ever changed, the relevance is	reevaluated	such that the element can 
+				or	not.  If the condition is ever changed, the relevance is	reevaluated	such that the element can
 				change visibility.
 			</xs:documentation>
 		</xs:annotation>
@@ -224,12 +224,12 @@
 	<xs:complexType	name="ListNode">
 		<xs:annotation>
 			<xs:documentation>
-				FilterRelevance	must return	a set of bes objects.  When	the	user clicks	on this	tree node, 
+				FilterRelevance	must return	a set of bes objects.  When	the	user clicks	on this	tree node,
 				a list containing all the objects in the set will be shown,	with the first item	in the list
 				previewed below	the	list.
-				
+
 				A list node	can	contain	List, Drilldown, or	Folder nodes as	children.  All descendent nodes
-				of this	node must be of	the	same object	type, and are filtered according to	this node's	FilterRelevance, 
+				of this	node must be of	the	same object	type, and are filtered according to	this node's	FilterRelevance,
 				in addition	to their own FilterRelevance.
 			</xs:documentation>
 		</xs:annotation>
@@ -252,8 +252,8 @@
 				A Drilldown	node is	like a list	node in	that when the user clicks on it, a list	of objects is
 				displayed with the first object	previewed below	the	list.  The objects shown in	the	list are those
 				returned in	the	set	returned by	the	FilterRelevance.
-				
-				The	difference between a Drilldown node	and	a List node	is that	they have different children.  A	List 
+
+				The	difference between a Drilldown node	and	a List node	is that	they have different children.  A	List
 				node can have arbitrary	sub-List, sub-Drilldown, and sub-Folder	nodes, as defined in the domain	specification.
 				A Drilldown	node will have children	as defined by the columns in the list that are shown, which	depends	on
 				the	type of	object.	 For example, a	fixlet Drilldown node will have	children that will let the user	filter further
@@ -324,7 +324,7 @@
 		<xs:annotation>
 			<xs:documentation>
 				The	DocumentNodeGroup expands into multiple	nodes, each	node representing a	single document	for	each result	returned from
-				the	relevance expression, each of the same type.  
+				the	relevance expression, each of the same type.
 			</xs:documentation>
 		</xs:annotation>
 		<xs:complexContent>
@@ -336,7 +336,7 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
-  
+
 	<xs:complexType name="UntypedDocumentNodeGroup">
 		<xs:complexContent>
 			<xs:extension base="DocumentNodeGroup">
@@ -344,7 +344,7 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
-  
+
 	<xs:complexType name="TypedDocumentNodeGroup">
 		<xs:complexContent>
 			<xs:extension base="DocumentNodeGroup">
@@ -352,7 +352,7 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
-	
+
 	<xs:complexType name="UntypedMixedContentListNode">
 		<xs:complexContent>
 			<xs:extension base="Node">
@@ -370,7 +370,7 @@
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>
-	
+
 	<xs:complexType name="TypedMixedContentListNode">
 		<xs:complexContent>
 			<xs:extension base="Node">

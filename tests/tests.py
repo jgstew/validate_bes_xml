@@ -1,4 +1,4 @@
-"""test validate_bes_xml"""
+"""Test validate_bes_xml."""
 
 import argparse
 import os.path
