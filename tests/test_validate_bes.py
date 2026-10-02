@@ -497,3 +497,73 @@ def test_import_star_exports_only_public_api():
 def test_package_does_not_reexport_implementation_imports(name):
     """Imports used inside the module are not package attributes."""
     assert not hasattr(validate_bes_xml, name)
+
+
+def rootless_tree(kind):
+    """Return an lxml ElementTree whose root is missing or not an element."""
+    if kind == "empty":
+        return lxml.etree.ElementTree()
+    if kind == "comment":
+        return lxml.etree.ElementTree(lxml.etree.Comment("only a comment"))
+    return lxml.etree.ElementTree(lxml.etree.ProcessingInstruction("only-a-pi"))
+
+
+@pytest.mark.parametrize("kind", ["empty", "comment", "processing-instruction"])
+def test_tree_without_root_element_is_invalid_and_quiet(kind, capsys):
+    """A tree without a root element is invalid, has no schema, and prints nothing."""
+    result = vbx.validate_bes(rootless_tree(kind))
+    assert result.valid is False
+    assert result.schema is None
+    assert result.errors == [(None, "XML document has no root element")]
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("kind", ["comment", "processing-instruction"])
+def test_element_without_root_element_is_invalid_and_quiet(kind, capsys):
+    """A comment or processing instruction passed as an Element is invalid too."""
+    result = vbx.validate_bes(rootless_tree(kind).getroot())
+    assert result.valid is False
+    assert result.schema is None
+    assert capsys.readouterr().out == ""
+
+
+def test_validate_xml_tree_without_root_element(capsys):
+    """The validate_xml() wrapper returns False and prints only the new message."""
+    assert vbx.validate_xml(rootless_tree("empty")) is False
+    assert capsys.readouterr().out == "XML document has no root element\n"
+
+
+def test_explicit_xml_keyword_rejects_pathlib_path():
+    """Xml= takes XML content, so a pathlib.Path is a caller error, not a file."""
+    with pytest.raises(TypeError, match="path="):
+        vbx.validate_bes(xml=pathlib.Path(GOOD_BES))
+
+
+def test_validate_xml_stream_syntax_error_names_stream(capsys):
+    """A syntax error in a stream without a .name is reported as <xml>, not None."""
+    assert vbx.validate_xml(io.BytesIO(b"<BES><x></BES>")) is False
+    out = capsys.readouterr().out
+    assert "XML Syntax Error in: <xml>" in out
+    assert "None" not in out
+
+
+def test_validate_xml_named_stream_syntax_error_uses_stream_name(tmp_path, capsys):
+    """A syntax error in an open file is reported with the file's name."""
+    broken = tmp_path / "broken.bes"
+    broken.write_bytes(b"<BES><x></BES>")
+    with open(broken, "rb") as file_obj:
+        assert vbx.validate_xml(file_obj) is False
+    assert f"XML Syntax Error in: {broken}" in capsys.readouterr().out
+
+
+def test_explicit_path_keyword_accepts_bytes_path():
+    """Path= accepts a bytes path, decoded with os.fsdecode."""
+    result = vbx.validate_bes(path=os.fsencode(GOOD_OJO))
+    assert result.valid is True
+    assert os.path.basename(result.schema) == "BESOJO.xsd"
+
+
+def test_filename_accepts_bytes():
+    """A bytes filename is decoded, so the extension rules still apply."""
+    result = vbx.validate_bes("<BES/>", filename=b"site.BESDomain")
+    assert os.path.basename(result.schema) == "BESDomain.xsd"
