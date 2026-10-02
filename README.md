@@ -30,6 +30,9 @@ Bundled schemas:
 
 Additional `.xsd` files placed in the current working directory
 (or a `schemas` subfolder of it) are picked up automatically.
+A schema is matched by its exact file name, and the bundled copy is always
+used over another file with the same name. An `.xsd` that cannot be read or
+parsed is skipped with a warning on stderr.
 
 ## Requirements
 
