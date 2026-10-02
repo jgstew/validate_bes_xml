@@ -14,6 +14,7 @@ For each XML file, the validator:
 1. Parses the file and reports XML syntax errors, if any.
 2. Determines which schema to use, in this order:
    - `.ojo` in the file name -> `BESOJO.xsd`
+   - `.BESDomain` in the file name (any case) -> `BESDomain.xsd`
    - an attribute on the root tag referencing an `.xsd` file
      (e.g. `xsi:noNamespaceSchemaLocation="BES.xsd"`)
    - the name of the root tag itself (e.g. `<BES>` -> `BES.xsd`)
@@ -93,6 +94,44 @@ validate_bes_xml.validate_all_files("path/to/content")
 # customize which file extensions are scanned:
 validate_bes_xml.validate_all_files(".", file_extensions=(".bes",))
 ```
+
+To validate XML that is not in a file on disk, or to get the errors back
+instead of printed, use `validate_bes()`. It never prints, and returns a
+`ValidationResult` that is truthy when valid:
+
+```python
+import validate_bes_xml
+
+result = validate_bes_xml.validate_bes(raw_bytes, filename="example.bes")
+if not result:
+    print("failed against", result.schema)
+    for line, message in result.errors:
+        print(f"Line {line}: {message}")
+```
+
+`validate_bes()` accepts:
+
+- a file path, as a `str` or `pathlib.Path`
+- XML text, as a `str` that starts with `<` (a leading BOM is ignored)
+- `bytes`, `bytearray`, or `memoryview` (the XML encoding declaration is used)
+- a binary or text file-like object
+- a parsed `lxml.etree` ElementTree or Element
+
+Use `xml=` or `path=` instead of the first argument to skip guessing
+whether a `str` is XML text or a path. Pass `filename=` so in-memory XML
+gets the same `.ojo` / `.BESDomain` schema rules as a file. It defaults to
+the path, or to the `.name` of an open file.
+
+`ValidationResult` fields:
+
+- `valid`: `True` or `False`
+- `schema`: path of the schema that was used, or `None` when the XML did not
+  parse or no bundled schema matched
+- `errors`: list of `(line, message)` tuples; `line` is `None` when unknown
+
+Each `.xsd` is compiled once per process and reused.
+
+`validate_xml(path, verbose=False)` validates a file without printing.
 
 ## Development
 
