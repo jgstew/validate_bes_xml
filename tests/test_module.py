@@ -6,6 +6,7 @@ run `pytest -v` at the root to get results
 
 import glob
 import os.path
+import shutil
 import subprocess
 import sys
 
@@ -310,6 +311,45 @@ def test_validate_all_files_nonexistent_folder(tmp_path):
     """Os.walk on a nonexistent folder yields nothing, so no errors."""
     bogus_folder = str(tmp_path / "does_not_exist")
     assert vbx.validate_all_files(bogus_folder) == 0
+
+
+@pytest.fixture(name="git_tree")
+def fixture_git_tree(tmp_path):
+    """A folder with bad files in .git, nested .git, .github and .gitlab folders."""
+    bad_file = os.path.join(BAD_EXAMPLES_DIR, "example_bes.bes")
+    for folder in (
+        ".git",
+        os.path.join("sub", ".git", "objects"),
+        ".github",
+        ".gitlab",
+    ):
+        os.makedirs(tmp_path / folder)
+        shutil.copy(bad_file, tmp_path / folder / "bad.bes")
+    shutil.copy(os.path.join(GOOD_EXAMPLES_DIR, "FixletDebugger.bes"), tmp_path)
+    return tmp_path
+
+
+def test_validate_all_files_skips_git_folders_absolute_path(git_tree, capsys):
+    """.git folders are skipped at any depth when given an absolute path."""
+    assert vbx.validate_all_files(str(git_tree)) == 2
+    out = capsys.readouterr().out
+    assert os.sep + ".git" + os.sep not in out
+    assert "2 errors found in 3 xml files" in out
+
+
+def test_validate_all_files_skips_git_folders_relative_path(git_tree, monkeypatch):
+    """.git folders are skipped at any depth when scanning from the cwd."""
+    monkeypatch.chdir(git_tree)
+    assert vbx.validate_all_files(".") == 2
+    assert vbx.validate_all_files() == 2
+
+
+def test_validate_all_files_scans_folders_that_only_start_with_git(git_tree, capsys):
+    """Only folders named exactly .git are skipped, not .github or .gitlab."""
+    vbx.validate_all_files(str(git_tree))
+    out = capsys.readouterr().out
+    assert os.path.join(str(git_tree), ".github", "bad.bes") in out
+    assert os.path.join(str(git_tree), ".gitlab", "bad.bes") in out
 
 
 # ---------------------------------------------------------------------------
