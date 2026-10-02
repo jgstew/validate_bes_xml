@@ -163,8 +163,11 @@ def _parse_text(text):
 
 def _source_path(source, kind=None):
     """Return the file path if this source will be read as a path, else None."""
+    if kind == "xml" and isinstance(source, os.PathLike):
+        raise TypeError("xml= takes XML content, not a path; use path= instead")
     if kind == "path" or isinstance(source, os.PathLike):
-        return os.fspath(source)
+        # bytes paths are decoded so the .ojo / .BESDomain checks work on a str
+        return os.fsdecode(source)
     if (
         kind is None
         and isinstance(source, str)
@@ -172,6 +175,27 @@ def _source_path(source, kind=None):
     ):
         return source
     return None
+
+
+def _stream_name(source):
+    """Return the .name of a file-like object if it is a str, else None."""
+    if not hasattr(source, "read"):
+        return None
+    name = getattr(source, "name", None)
+    return name if isinstance(name, str) else None
+
+
+def _with_root(tree):
+    """
+    Return the tree if its root is an element.
+
+    A tree that is empty, or whose root is a comment or processing instruction,
+    raises ValueError, which _validate turns into an invalid result.
+    """
+    root = tree.getroot()
+    if root is None or not isinstance(root.tag, str):
+        raise ValueError("XML document has no root element")
+    return tree
 
 
 def _to_document(source, kind=None):
@@ -186,9 +210,9 @@ def _to_document(source, kind=None):
         return _parse(source_path), source_path
 
     if isinstance(source, lxml.etree._ElementTree):  # pylint: disable=protected-access
-        return source, None
+        return _with_root(source), None
     if lxml.etree.iselement(source):
-        return source.getroottree(), None
+        return _with_root(source.getroottree()), None
 
     if isinstance(source, str):
         return _parse_text(source), None
@@ -197,9 +221,7 @@ def _to_document(source, kind=None):
         return _parse(io.BytesIO(bytes(source))), None
 
     if hasattr(source, "read"):
-        name = getattr(source, "name", None)
-        if not isinstance(name, str):
-            name = None
+        name = _stream_name(source)
         data = source.read()
         if isinstance(data, str):
             return _parse_text(data), name
@@ -219,14 +241,16 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
     if not schema_pathnames:
         schema_pathnames = SCHEMA_FILES
 
-    # allow pathlib.Path and other os.PathLike file names
+    # allow pathlib.Path, bytes, and other os.PathLike file names
     if filename is not None:
-        filename = os.fspath(filename)
+        filename = os.fsdecode(filename)
 
     # used in messages before the document's own name is known
     display_name = filename
     if display_name is None:
         display_name = _source_path(source, kind)
+    if display_name is None:
+        display_name = _stream_name(source) or "<xml>"
 
     # parse xml
     try:
@@ -261,8 +285,6 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
 
     if filename is None:
         filename = source_name
-    if display_name is None:
-        display_name = filename if filename is not None else "<xml>"
 
     inferred_schema_path = None
     lower_filename = (filename or "").lower()
