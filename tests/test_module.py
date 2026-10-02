@@ -103,10 +103,62 @@ def test_find_schema_files_ignores_invalid_xsd(tmp_path, capsys):
     result = vbx.find_schema_files(str(tmp_path))
 
     captured = capsys.readouterr()
-    assert "did not parse" in captured.out
+    assert "did not parse" in captured.err
     assert str(bad_xsd) not in result
     # the 4 real schemas (found via the module's own directory) are still there
     assert len(result) == 4
+
+
+def test_find_schema_files_warning_not_on_stdout(tmp_path, capsys):
+    """The skipped-schema warning goes to stderr, keeping callers' stdout clean."""
+    (tmp_path / "notxsd.xsd").write_text("<root/>")
+
+    vbx.find_schema_files(str(tmp_path))
+
+    assert capsys.readouterr().out == ""
+
+
+def test_find_schema_files_skips_malformed_xsd(tmp_path, capsys):
+    """An .xsd that isn't well-formed XML should be skipped, not raise (issue #14)."""
+    broken_xsd = tmp_path / "broken.xsd"
+    broken_xsd.write_text("<not a schema")
+
+    result = vbx.find_schema_files(str(tmp_path))
+
+    assert "did not parse" in capsys.readouterr().err
+    assert str(broken_xsd) not in result
+    assert len(result) == 4
+
+
+def test_find_schema_files_skips_unreadable_xsd(tmp_path, capsys):
+    """An .xsd that can't be read (here a folder) should be skipped, not raise."""
+    unreadable_xsd = tmp_path / "folder.xsd"
+    unreadable_xsd.mkdir()
+
+    result = vbx.find_schema_files(str(tmp_path))
+
+    assert "did not parse" in capsys.readouterr().err
+    assert str(unreadable_xsd) not in result
+    assert len(result) == 4
+
+
+def test_import_with_malformed_xsd_in_cwd(tmp_path):
+    """Importing the package must not fail when the cwd has a broken .xsd (#14)."""
+    (tmp_path / "broken.xsd").write_text("<not a schema")
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.path.join(REPO_ROOT, "src")
+
+    completed = subprocess.run(
+        [sys.executable, "-c", "import validate_bes_xml"],
+        cwd=str(tmp_path),
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout == ""
 
 
 def test_find_schema_files_includes_valid_extra_schema(tmp_path):
@@ -264,6 +316,68 @@ def test_validate_xml_custom_schema_pathnames_can_still_pass():
     bes_schema = os.path.join(SCHEMAS_DIR, "BES.xsd")
 
     assert vbx.validate_xml(good_file, schema_pathnames=[bes_schema]) is True
+
+
+def bundled_schema(name):
+    """Return the SCHEMA_FILES entry for the bundled schema with this base name."""
+    matches = [s for s in vbx.SCHEMA_FILES if os.path.basename(s) == name]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def copy_schema(folder, name, source_name="BES.xsd"):
+    """Copy a bundled schema into folder under a new name, return its path."""
+    folder.mkdir(exist_ok=True)
+    target = str(folder / name)
+    shutil.copy(os.path.join(SCHEMAS_DIR, source_name), target)
+    return target
+
+
+def test_schema_match_is_by_file_name_not_substring(tmp_path):
+    """A schema named MyBES.xsd must not be picked for an inferred BES.xsd (#14)."""
+    my_bes = copy_schema(tmp_path, "MyBES.xsd")
+    good_file = os.path.join(GOOD_EXAMPLES_DIR, "FixletDebugger.bes")
+
+    result = vbx.validate_bes(
+        path=good_file, schema_pathnames=[bundled_schema("BES.xsd"), my_bes]
+    )
+
+    assert result.schema == bundled_schema("BES.xsd")
+
+
+def test_schema_match_only_similar_name_finds_no_schema(tmp_path):
+    """With only MyBES.xsd available, there is no schema for BES.xsd."""
+    my_bes = copy_schema(tmp_path, "MyBES.xsd")
+    good_file = os.path.join(GOOD_EXAMPLES_DIR, "FixletDebugger.bes")
+
+    result = vbx.validate_bes(path=good_file, schema_pathnames=[my_bes])
+
+    assert not result
+    assert result.schema is None
+
+
+def test_bundled_schema_preferred_over_other_copy(tmp_path):
+    """A repo-local BES.xsd must not override the bundled one (#14)."""
+    local_bes = copy_schema(tmp_path, "BES.xsd")
+    good_file = os.path.join(GOOD_EXAMPLES_DIR, "FixletDebugger.bes")
+
+    for schemas in (
+        [bundled_schema("BES.xsd"), local_bes],
+        [local_bes, bundled_schema("BES.xsd")],
+    ):
+        result = vbx.validate_bes(path=good_file, schema_pathnames=schemas)
+        assert result.schema == bundled_schema("BES.xsd")
+
+
+def test_schema_choice_is_deterministic_without_bundled_copy(tmp_path):
+    """Between several non-bundled copies, the same one is always chosen."""
+    first = copy_schema(tmp_path / "a", "BES.xsd")
+    second = copy_schema(tmp_path / "b", "BES.xsd")
+    good_file = os.path.join(GOOD_EXAMPLES_DIR, "FixletDebugger.bes")
+
+    for schemas in ([first, second], [second, first]):
+        result = vbx.validate_bes(path=good_file, schema_pathnames=schemas)
+        assert result.schema == first
 
 
 # ---------------------------------------------------------------------------

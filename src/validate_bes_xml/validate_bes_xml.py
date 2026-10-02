@@ -90,13 +90,51 @@ def find_schema_files(folder_path=None):
                     # test xsd parsing
                     lxml.etree.XMLSchema(lxml.etree.parse(file_item_path))
                     schema_files_set.add(file_item_path)
-                except lxml.etree.XMLSchemaParseError:
-                    print("WARNING: xsd did not parse: " + file_item_path)
+                # skip schemas that are invalid, not well-formed, or unreadable,
+                # since one bad .xsd in the cwd must not break importing this module
+                except (
+                    lxml.etree.XMLSchemaParseError,
+                    lxml.etree.XMLSyntaxError,
+                    OSError,
+                ):
+                    # stderr keeps the stdout of tools that import this module clean
+                    print(
+                        "WARNING: xsd did not parse: " + file_item_path, file=sys.stderr
+                    )
     # print(schema_files_set)
     return schema_files_set
 
 
 SCHEMA_FILES = find_schema_files()
+
+_BUNDLED_SCHEMAS_DIR = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "schemas"
+)
+
+
+def _is_bundled_schema(schema_path):
+    """Return True if this schema is one shipped inside this package."""
+    schema_dir = os.path.dirname(os.path.realpath(schema_path))
+    return os.path.normcase(schema_dir) == os.path.normcase(_BUNDLED_SCHEMAS_DIR)
+
+
+def _select_schema(schema_pathnames, inferred_schema_name):
+    """
+    Return the schema whose file name is inferred_schema_name, or None.
+
+    The bundled copy wins over any other with the same name, such as one in the
+    cwd. Otherwise the first path in sorted order wins, so the choice doesn't
+    depend on the iteration order of a set.
+    """
+    # the inferred name can come from a root tag attribute, which may hold a path
+    wanted_name = inferred_schema_name.replace("\\", "/").rsplit("/", 1)[-1]
+    matches = sorted(
+        schema for schema in schema_pathnames if os.path.basename(schema) == wanted_name
+    )
+    for schema in matches:
+        if _is_bundled_schema(schema):
+            return schema
+    return matches[0] if matches else None
 
 
 @dataclasses.dataclass
@@ -286,7 +324,6 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
     if filename is None:
         filename = source_name
 
-    inferred_schema_path = None
     lower_filename = (filename or "").lower()
     if ".ojo" in lower_filename:
         inferred_schema_name = "BESOJO.xsd"
@@ -294,9 +331,7 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
         inferred_schema_name = "BESDomain.xsd"
     else:
         inferred_schema_name = infer_xml_schema(xml_doc_obj)
-    for schema in schema_pathnames:
-        if inferred_schema_name in schema:
-            inferred_schema_path = schema
+    inferred_schema_path = _select_schema(schema_pathnames, inferred_schema_name)
 
     if not inferred_schema_path:
         message = "no schema to validate %s (inferred schema name: %s)" % (
