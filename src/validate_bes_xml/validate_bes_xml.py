@@ -20,6 +20,17 @@ try:
 except ImportError:
     import lxml
 
+__all__ = [
+    "SCHEMA_FILES",
+    "ValidationResult",
+    "find_schema_files",
+    "infer_xml_schema",
+    "main",
+    "validate_all_files",
+    "validate_bes",
+    "validate_xml",
+]
+
 
 def infer_xml_schema(xml_doc_obj):
     """
@@ -119,15 +130,23 @@ def _load_schema(schema_path):
 _BOM = "\ufeff"
 
 
-def _parse(xml_input, parser=None):
+def _parse(xml_input, encoding=None):
     """
     Parse a path or binary stream with a new parser.
+
+    Only entities defined inside the document are expanded, never external ones
+    (XXE), and nothing is fetched from the network. These are lxml 5's defaults,
+    set here explicitly so they don't depend on the lxml version.
 
     On a syntax error, err.parse_errors holds this parse's (line, message) list.
     XMLSyntaxError.error_log can also hold errors from earlier parses, the
     parser's own error_log does not.
     """
-    parser = parser or lxml.etree.XMLParser()
+    # resolve_entities=False would also block internal entities, and makes
+    # XMLSchema.validate() fail with an internal error on documents that use them
+    parser = lxml.etree.XMLParser(
+        resolve_entities="internal", no_network=True, encoding=encoding
+    )
     try:
         return lxml.etree.parse(xml_input, parser)
     except lxml.etree.XMLSyntaxError as err:
@@ -139,7 +158,7 @@ def _parse_text(text):
     """Parse XML text that is already decoded, ignoring any encoding declaration."""
     data = text.lstrip(_BOM).encode("utf-8")
     # the encoding argument overrides the document's own declaration
-    return _parse(io.BytesIO(data), lxml.etree.XMLParser(encoding="utf-8"))
+    return _parse(io.BytesIO(data), encoding="utf-8")
 
 
 def _source_path(source, kind=None):
@@ -200,6 +219,10 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
     if not schema_pathnames:
         schema_pathnames = SCHEMA_FILES
 
+    # allow pathlib.Path and other os.PathLike file names
+    if filename is not None:
+        filename = os.fspath(filename)
+
     # used in messages before the document's own name is known
     display_name = filename
     if display_name is None:
@@ -209,6 +232,8 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
     try:
         xml_doc_obj, source_name = _to_document(source, kind)
 
+    # an unsupported source type is a caller error, so don't let the
+    # `except Exception` below turn it into an invalid result
     except TypeError:
         raise
 
@@ -291,8 +316,8 @@ def validate_bes(
     Validate BES XML from a path, str, bytes, stream, or parsed lxml tree.
 
     Give exactly one of `source` (type is guessed), `xml=` (XML content), or `path=`
-    (a file path). `filename` enables the .ojo / .BESDomain schema rules for
-    in-memory XML; it defaults to the path or the stream's `.name`.
+    (a file path). `filename` (str or os.PathLike) enables the .ojo / .BESDomain
+    schema rules for in-memory XML; it defaults to the path or the stream's `.name`.
     Never prints. Returns a ValidationResult, which is truthy when valid.
     """
     given = [
@@ -309,7 +334,13 @@ def validate_bes(
 def validate_xml(file_pathname, schema_pathnames=None, verbose=True):
     """This will validate a single XML file against the schema."""
     kind = "path" if isinstance(file_pathname, (str, os.PathLike)) else None
-    return bool(_validate(file_pathname, schema_pathnames, None, kind, verbose))
+    try:
+        return bool(_validate(file_pathname, schema_pathnames, None, kind, verbose))
+    # keep the original contract: print the problem and return False, never raise
+    except Exception as err:
+        if verbose:
+            print(err)
+        return False
 
 
 def validate_all_files(folder_path=".", file_extensions=(".bes", ".ojo")):

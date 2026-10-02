@@ -383,3 +383,117 @@ def test_validate_xml_verbose_default_keeps_output(capsys):
     assert f"Schema Validation Error in: {BAD_BES}" in out
     assert "  validated against schema: " in out
     assert "  Line 2: " in out
+
+
+# ---------------------------------------------------------------------------
+# PR #15 review fixes
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "filename, expected_schema",
+    [
+        (pathlib.Path("content", "wizard.ojo"), "BESOJO.xsd"),
+        (pathlib.Path("content", "site.BESDomain"), "BESDomain.xsd"),
+        (pathlib.Path("content", "fixlet.bes"), "BES.xsd"),
+    ],
+)
+def test_filename_accepts_pathlib_path(filename, expected_schema):
+    """A pathlib.Path filename applies the same extension rules as a str."""
+    result = vbx.validate_bes("<BES/>", filename=filename)
+    assert os.path.basename(result.schema) == expected_schema
+
+
+def test_filename_pathlib_path_in_messages():
+    """A pathlib.Path filename shows up as a str path in error messages."""
+    result = vbx.validate_bes("<Unknown/>", filename=pathlib.Path("x", "y.bes"))
+    assert os.path.join("x", "y.bes") in result.errors[0][1]
+
+
+def test_parser_does_not_expand_external_entities(tmp_path):
+    """External entities (XXE) are never expanded into the document."""
+    secret = tmp_path / "secret.txt"
+    secret.write_text("top-secret-value")
+    body = read_text(GOOD_BES).split("?>", 1)[1]
+    payload = (
+        '<?xml version="1.0"?>'
+        f'<!DOCTYPE BES [<!ENTITY s SYSTEM "{secret.as_uri()}">]>'
+        + body.replace("<Title>", "<Title>&s; ", 1)
+    )
+    for source in (payload, payload.encode("utf-8"), io.StringIO(payload)):
+        result = vbx.validate_bes(source)
+        assert result.valid is False
+        assert all(
+            "top-secret-value" not in message for _line, message in result.errors
+        )
+
+
+def test_parser_does_not_expand_external_entities_from_file(tmp_path):
+    """Files on disk get the same protection as in-memory XML."""
+    secret = tmp_path / "secret.txt"
+    secret.write_text("top-secret-value")
+    xxe_file = tmp_path / "xxe.bes"
+    xxe_file.write_text(
+        f'<?xml version="1.0"?><!DOCTYPE BES [<!ENTITY s SYSTEM "{secret.as_uri()}">]>'
+        "<BES>&s;</BES>"
+    )
+    result = vbx.validate_bes(str(xxe_file))
+    assert result.valid is False
+    assert all("top-secret-value" not in message for _line, message in result.errors)
+
+
+def test_parser_still_expands_internal_entities():
+    """Entities defined inside the document still work, as with lxml's default."""
+    body = read_text(GOOD_BES).split("?>", 1)[1]
+    doc = '<?xml version="1.0"?><!DOCTYPE BES [<!ENTITY t "Hello">]>' + body.replace(
+        "<Title>", "<Title>&t; ", 1
+    )
+    assert vbx.validate_bes(doc).valid is True
+
+
+def test_lxml_minimum_version_is_pinned():
+    """Lxml 5.0+ is required: older versions expand external entities by default."""
+    for file_name in ("requirements.txt", "setup.cfg"):
+        with open(os.path.join(REPO_ROOT, file_name), encoding="utf-8") as file_obj:
+            assert "lxml>=5" in file_obj.read().replace(" ", ""), file_name
+
+
+@pytest.mark.parametrize("bad_input", [None, 12345, object()])
+def test_validate_xml_returns_false_for_unsupported_input(bad_input):
+    """The legacy wrapper returns False instead of raising, as before."""
+    assert vbx.validate_xml(bad_input, verbose=False) is False
+
+
+def test_validate_xml_unsupported_input_prints_error_when_verbose(capsys):
+    """With verbose on, the reason is printed, like other failures."""
+    assert vbx.validate_xml(None) is False
+    assert "unsupported XML source type: NoneType" in capsys.readouterr().out
+
+
+# the public API of 2.1.1, plus what this release adds
+ORIGINAL_PUBLIC_NAMES = {"SCHEMA_FILES", "find_schema_files", "infer_xml_schema"}
+ORIGINAL_PUBLIC_NAMES |= {"main", "validate_all_files", "validate_xml"}
+EXPECTED_PUBLIC_NAMES = ORIGINAL_PUBLIC_NAMES | {"ValidationResult", "validate_bes"}
+
+
+def test_module_all_lists_public_api():
+    """The implementation module's __all__ is exactly the public API."""
+    assert set(vbx.__all__) == EXPECTED_PUBLIC_NAMES
+
+
+def test_import_star_exports_only_public_api():
+    """Using `from validate_bes_xml import *` exports only the public API."""
+    namespace = {}
+    exec("from validate_bes_xml import *", namespace)  # pylint: disable=exec-used
+    namespace.pop("__builtins__")
+    # the implementation submodule itself was also exported in 2.1.1
+    assert set(namespace) == EXPECTED_PUBLIC_NAMES | {"validate_bes_xml"}
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["dataclasses", "functools", "io", "threading", "List", "Optional", "Tuple"],
+)
+def test_package_does_not_reexport_implementation_imports(name):
+    """Imports used inside the module are not package attributes."""
+    assert not hasattr(validate_bes_xml, name)
