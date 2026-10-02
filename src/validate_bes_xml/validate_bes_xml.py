@@ -192,7 +192,10 @@ def _to_document(source, kind=None):
 def _validate(  # pylint: disable=too-many-locals,too-many-statements
     source, schema_pathnames, filename, kind, verbose
 ):
-    """Validate one XML source. Prints today's validate_xml report when verbose."""
+    """Validate one XML source.
+
+    Prints today's validate_xml report when verbose.
+    """
 
     if not schema_pathnames:
         schema_pathnames = SCHEMA_FILES

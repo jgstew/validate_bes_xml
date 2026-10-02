@@ -1,36 +1,22 @@
 """
 Tests for validate_bes() and ValidationResult (issue #13).
 
+tests/conftest.py puts the local src first on sys.path.
+
 run `pytest -v` at the root to get results
 """
 
 import io
 import os.path
 import pathlib
-import sys
 
+import lxml.etree  # pylint: disable=import-error
 import pytest
+from example_paths import BAD_BES, GOOD_BES, GOOD_OJO, REPO_ROOT
 
-# add module folder to import paths for testing local src
-sys.path.append(
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
-)
-# reverse the order so we make sure to get the local src module, not pip package
-sys.path.reverse()
-
-import lxml.etree  # pylint: disable=import-error,wrong-import-position
-
-import validate_bes_xml  # pylint: disable=import-error,wrong-import-position
+import validate_bes_xml  # pylint: disable=import-error
 
 vbx = validate_bes_xml.validate_bes_xml
-
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GOOD_EXAMPLES_DIR = os.path.join(REPO_ROOT, "tests", "examples", "good")
-BAD_EXAMPLES_DIR = os.path.join(REPO_ROOT, "tests", "examples", "bad")
-
-GOOD_BES = os.path.join(GOOD_EXAMPLES_DIR, "FixletDebugger.bes")
-GOOD_OJO = os.path.join(GOOD_EXAMPLES_DIR, "minimal_wizard.ojo")
-BAD_BES = os.path.join(BAD_EXAMPLES_DIR, "example_bes.bes")
 
 
 def read_bytes(file_path):
@@ -51,7 +37,7 @@ def read_text(file_path):
 
 
 def test_validate_bes_exported_from_package():
-    """validate_bes and ValidationResult should be importable from the package."""
+    """Both validate_bes and ValidationResult are importable from the package."""
     assert validate_bes_xml.validate_bes is vbx.validate_bes
     assert validate_bes_xml.ValidationResult is vbx.ValidationResult
 
@@ -134,7 +120,7 @@ def test_validate_bes_missing_file():
 
 
 def test_validate_bes_does_not_print(capsys):
-    """validate_bes() is quiet, whatever the outcome."""
+    """Calling validate_bes() prints nothing, whatever the outcome."""
     vbx.validate_bes(GOOD_BES)
     vbx.validate_bes(BAD_BES)
     vbx.validate_bes("<BES><Task></BES>")
@@ -144,7 +130,7 @@ def test_validate_bes_does_not_print(capsys):
 
 
 def test_validate_bes_custom_schema_pathnames():
-    """schema_pathnames limits which schemas can be used."""
+    """The schema_pathnames argument limits which schemas can be used."""
     assert (
         vbx.validate_bes(GOOD_BES, schema_pathnames=["/nowhere/Other.xsd"]).schema
         is None
@@ -204,7 +190,7 @@ def test_source_str_xml_text_with_non_utf8_declaration():
 
 @pytest.mark.parametrize("wrap", [bytes, bytearray, memoryview])
 def test_source_bytes_like(wrap):
-    """bytes, bytearray and memoryview are parsed as XML."""
+    """Bytes, bytearray and memoryview are parsed as XML."""
     assert vbx.validate_bes(wrap(read_bytes(GOOD_BES))).valid is True
 
 
@@ -212,7 +198,7 @@ def test_source_bytes_respects_encoding_declaration():
     """Bytes are decoded using the XML encoding declaration."""
     data = (
         '<?xml version="1.0" encoding="ISO-8859-1"?>\n'
-        "<BES><Bogus>caf\u00e9</Bogus></BES>"
+        "<BES><Bogus>r\u00e9sum\u00e9</Bogus></BES>"
     ).encode("iso-8859-1")
     result = vbx.validate_bes(data)
     # well-formed, so it gets as far as schema validation
@@ -262,12 +248,12 @@ def test_source_unsupported_type_raises():
 
 
 def test_explicit_xml_keyword():
-    """xml= treats a str as XML text without guessing."""
+    """Xml= treats a str as XML text without guessing."""
     assert vbx.validate_bes(xml=read_text(GOOD_BES)).valid is True
 
 
 def test_explicit_xml_keyword_with_text_that_does_not_start_with_lt():
-    """xml= skips the '<' guess, so the text is parsed (and fails as syntax)."""
+    """Xml= skips the '<' guess, so the text is parsed (and fails as syntax)."""
     result = vbx.validate_bes(xml="not xml at all")
     assert result.valid is False
     assert result.schema is None
@@ -277,12 +263,12 @@ def test_explicit_xml_keyword_with_text_that_does_not_start_with_lt():
 
 
 def test_explicit_path_keyword():
-    """path= treats a str as a path without guessing."""
+    """Path= treats a str as a path without guessing."""
     assert vbx.validate_bes(path=GOOD_BES).valid is True
 
 
 def test_explicit_path_keyword_with_xml_looking_name(tmp_path):
-    """path= opens the file even when the name starts with '<'."""
+    """Path= opens the file even when the name starts with '<'."""
     odd_file = tmp_path / "<odd>.bes"
     try:
         odd_file.write_bytes(read_bytes(GOOD_BES))
@@ -312,7 +298,7 @@ def test_exactly_one_source_required(kwargs):
 
 
 def test_filename_ojo_rule_applies_to_in_memory_xml():
-    """filename='x.ojo' picks BESOJO.xsd for in-memory XML."""
+    """Filename='x.ojo' picks BESOJO.xsd for in-memory XML."""
     result = vbx.validate_bes(read_bytes(GOOD_OJO), filename="whatever.OJO")
     assert result.valid is True
     assert os.path.basename(result.schema) == "BESOJO.xsd"
@@ -325,7 +311,7 @@ def test_besdomain_extension_rule():
 
 
 def test_besdomain_extension_rule_in_validate_xml(tmp_path, capsys):
-    """validate_xml() should also pick BESDomain.xsd for .BESDomain files."""
+    """The validate_xml() wrapper also picks BESDomain.xsd for .BESDomain files."""
     domain_file = tmp_path / "content.BESDomain"
     domain_file.write_text("<BES/>")
     assert vbx.validate_xml(str(domain_file)) is False
@@ -374,18 +360,18 @@ def test_compiled_schema_is_cached(monkeypatch):
 
 
 def test_validate_xml_accepts_pathlib_path():
-    """validate_xml() no longer needs a str path."""
+    """The validate_xml() wrapper no longer needs a str path."""
     assert vbx.validate_xml(pathlib.Path(GOOD_BES)) is True
 
 
 def test_validate_xml_still_returns_bool():
-    """validate_xml() keeps returning a plain bool."""
+    """The validate_xml() wrapper keeps returning a plain bool."""
     assert vbx.validate_xml(GOOD_BES) is True
     assert vbx.validate_xml(BAD_BES) is False
 
 
 def test_validate_xml_verbose_false_is_quiet(capsys):
-    """validate_xml(verbose=False) prints nothing."""
+    """Calling validate_xml(verbose=False) prints nothing."""
     assert vbx.validate_xml(BAD_BES, verbose=False) is False
     assert capsys.readouterr().out == ""
 

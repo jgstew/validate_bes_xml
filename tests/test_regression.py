@@ -5,6 +5,8 @@ These pin the public API as released (2.1.1): names, signatures, return types,
 printed output, and scanning rules. They must pass against both the released code
 and any new version, so they only use the original API.
 
+tests/conftest.py puts the local src first on sys.path.
+
 run `pytest -v` at the root to get results
 """
 
@@ -15,29 +17,14 @@ import shutil
 import subprocess
 import sys
 
+import example_paths as paths
+import lxml.etree  # pylint: disable=import-error
 import pytest
 
-# add module folder to import paths for testing local src
-sys.path.append(
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
-)
-# reverse the order so we make sure to get the local src module, not pip package
-sys.path.reverse()
-
-import lxml.etree  # pylint: disable=import-error,wrong-import-position
-
-import validate_bes_xml  # pylint: disable=import-error,wrong-import-position
+import validate_bes_xml  # pylint: disable=import-error
 
 vbx = validate_bes_xml.validate_bes_xml
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GOOD_EXAMPLES_DIR = os.path.join(REPO_ROOT, "tests", "examples", "good")
-BAD_EXAMPLES_DIR = os.path.join(REPO_ROOT, "tests", "examples", "bad")
-SCHEMAS_DIR = os.path.join(REPO_ROOT, "src", "validate_bes_xml", "schemas")
-
-GOOD_BES = os.path.join(GOOD_EXAMPLES_DIR, "FixletDebugger.bes")
-GOOD_OJO = os.path.join(GOOD_EXAMPLES_DIR, "minimal_wizard.ojo")
-BAD_BES = os.path.join(BAD_EXAMPLES_DIR, "example_bes.bes")
 
 BUNDLED_SCHEMAS = {"BES.xsd", "BESAPI.xsd", "BESDomain.xsd", "BESOJO.xsd"}
 
@@ -138,7 +125,9 @@ def test_signature_is_backward_compatible(func_name):
 def test_validate_xml_keyword_call():
     """Callers that name the arguments keep working."""
     assert (
-        vbx.validate_xml(file_pathname=GOOD_BES, schema_pathnames=vbx.SCHEMA_FILES)
+        vbx.validate_xml(
+            file_pathname=paths.GOOD_BES, schema_pathnames=vbx.SCHEMA_FILES
+        )
         is True
     )
 
@@ -160,8 +149,10 @@ def test_schema_files_is_set_of_str_paths():
 def test_find_schema_files_picks_up_cwd(tmp_path, monkeypatch):
     """.xsd files in the cwd, and its 'schemas' folder, are found (README)."""
     (tmp_path / "schemas").mkdir()
-    shutil.copy(os.path.join(SCHEMAS_DIR, "BES.xsd"), tmp_path / "CwdExtra.xsd")
-    shutil.copy(os.path.join(SCHEMAS_DIR, "BES.xsd"), tmp_path / "schemas" / "Sub.xsd")
+    shutil.copy(os.path.join(paths.SCHEMAS_DIR, "BES.xsd"), tmp_path / "CwdExtra.xsd")
+    shutil.copy(
+        os.path.join(paths.SCHEMAS_DIR, "BES.xsd"), tmp_path / "schemas" / "Sub.xsd"
+    )
     monkeypatch.chdir(tmp_path)
 
     found = {os.path.basename(s) for s in vbx.find_schema_files()}
@@ -171,7 +162,7 @@ def test_find_schema_files_picks_up_cwd(tmp_path, monkeypatch):
 
 def test_find_schema_files_matches_xsd_extension_case_insensitively(tmp_path):
     """An .XSD file name is found too."""
-    shutil.copy(os.path.join(SCHEMAS_DIR, "BES.xsd"), tmp_path / "Upper.XSD")
+    shutil.copy(os.path.join(paths.SCHEMAS_DIR, "BES.xsd"), tmp_path / "Upper.XSD")
     assert str(tmp_path / "Upper.XSD") in vbx.find_schema_files(str(tmp_path))
 
 
@@ -218,15 +209,15 @@ def test_infer_xml_schema_namespaced_root_tag():
 @pytest.mark.parametrize(
     "file_path, expected",
     [
-        (GOOD_BES, True),
-        (GOOD_OJO, True),
-        (BAD_BES, False),
-        (os.path.join(REPO_ROOT, "does_not_exist.bes"), False),
-        (GOOD_EXAMPLES_DIR, False),  # a directory, not a file
+        (paths.GOOD_BES, True),
+        (paths.GOOD_OJO, True),
+        (paths.BAD_BES, False),
+        (os.path.join(paths.REPO_ROOT, "does_not_exist.bes"), False),
+        (paths.GOOD_EXAMPLES_DIR, False),  # a directory, not a file
     ],
 )
 def test_validate_xml_returns_plain_bool(file_path, expected):
-    """validate_xml() returns exactly True or False, never a truthy object."""
+    """The validate_xml() result is exactly True or False, not a truthy object."""
     result = vbx.validate_xml(file_path)
     assert type(result) is bool  # pylint: disable=unidiomatic-typecheck
     assert result is expected
@@ -234,22 +225,22 @@ def test_validate_xml_returns_plain_bool(file_path, expected):
 
 def test_validate_xml_relative_path(monkeypatch):
     """A path relative to the cwd works."""
-    monkeypatch.chdir(GOOD_EXAMPLES_DIR)
+    monkeypatch.chdir(paths.GOOD_EXAMPLES_DIR)
     assert vbx.validate_xml("FixletDebugger.bes") is True
 
 
 def test_validate_xml_utf8_bom_file(tmp_path):
     """A file starting with a UTF-8 BOM validates."""
     bom_file = tmp_path / "bom.bes"
-    bom_file.write_bytes(b"\xef\xbb\xbf" + read_bytes(GOOD_BES))
+    bom_file.write_bytes(b"\xef\xbb\xbf" + read_bytes(paths.GOOD_BES))
     assert vbx.validate_xml(str(bom_file)) is True
 
 
 def test_validate_xml_non_utf8_encoding_declaration(tmp_path):
     """A file is decoded using its own encoding declaration."""
-    text = read_bytes(GOOD_BES).decode("utf-8")
+    text = read_bytes(paths.GOOD_BES).decode("utf-8")
     text = text.replace('encoding="UTF-8"', 'encoding="windows-1252"', 1)
-    text = text.replace("<Title>", "<Title>caf\u00e9 ", 1)
+    text = text.replace("<Title>", "<Title>r\u00e9sum\u00e9 ", 1)
     assert 'encoding="windows-1252"' in text
     cp_file = tmp_path / "cp1252.bes"
     cp_file.write_bytes(text.encode("cp1252"))
@@ -258,17 +249,17 @@ def test_validate_xml_non_utf8_encoding_declaration(tmp_path):
 
 def test_validate_xml_non_ascii_file_name(tmp_path):
     """A non-ASCII file name works."""
-    odd_file = tmp_path / "caf\u00e9 \u00fcber.bes"
-    odd_file.write_bytes(read_bytes(GOOD_BES))
+    odd_file = tmp_path / "r\u00e9sum\u00e9 \u00fcber.bes"
+    odd_file.write_bytes(read_bytes(paths.GOOD_BES))
     assert vbx.validate_xml(str(odd_file)) is True
 
 
 @pytest.mark.parametrize("container", [list, tuple, set, frozenset])
 def test_validate_xml_schema_pathnames_any_iterable(container):
-    """schema_pathnames can be any collection of paths."""
+    """The schema_pathnames argument can be any collection of paths."""
     schemas = container(vbx.SCHEMA_FILES)
-    assert vbx.validate_xml(GOOD_BES, schemas) is True
-    assert vbx.validate_xml(BAD_BES, schemas) is False
+    assert vbx.validate_xml(paths.GOOD_BES, schemas) is True
+    assert vbx.validate_xml(paths.BAD_BES, schemas) is False
 
 
 def test_validate_xml_uses_schema_from_custom_location(tmp_path, capsys):
@@ -276,11 +267,11 @@ def test_validate_xml_uses_schema_from_custom_location(tmp_path, capsys):
     custom = tmp_path / "custom"
     custom.mkdir()
     custom_schema = str(custom / "BES.xsd")
-    shutil.copy(os.path.join(SCHEMAS_DIR, "BES.xsd"), custom_schema)
+    shutil.copy(os.path.join(paths.SCHEMAS_DIR, "BES.xsd"), custom_schema)
 
-    assert vbx.validate_xml(BAD_BES, [custom_schema]) is False
+    assert vbx.validate_xml(paths.BAD_BES, [custom_schema]) is False
     assert f"  validated against schema: {custom_schema}\n" in capsys.readouterr().out
-    assert vbx.validate_xml(GOOD_BES, [custom_schema]) is True
+    assert vbx.validate_xml(paths.GOOD_BES, [custom_schema]) is True
 
 
 def test_validate_xml_ojo_file_uses_besojo_schema(tmp_path, capsys):
@@ -297,7 +288,7 @@ def test_validate_xml_ojo_file_uses_besojo_schema(tmp_path, capsys):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("file_path", [GOOD_BES, GOOD_OJO])
+@pytest.mark.parametrize("file_path", [paths.GOOD_BES, paths.GOOD_OJO])
 def test_validate_xml_valid_file_prints_nothing(file_path, capsys):
     """A valid file produces no output at all."""
     assert vbx.validate_xml(file_path) is True
@@ -338,10 +329,10 @@ def test_validate_xml_no_schema_exact_output(tmp_path, capsys):
 
 def test_validate_xml_schema_error_exact_output(capsys):
     """Exact output layout for schema errors: header, schema, one line per error."""
-    vbx.validate_xml(BAD_BES)
+    vbx.validate_xml(paths.BAD_BES)
     lines = capsys.readouterr().out.splitlines()
 
-    assert lines[0] == f"Schema Validation Error in: {BAD_BES}"
+    assert lines[0] == f"Schema Validation Error in: {paths.BAD_BES}"
     assert lines[1] == f"  validated against schema: {bundled_schema_path('BES.xsd')}"
     assert len(lines) >= 3
     for line in lines[2:]:
@@ -373,10 +364,10 @@ def fixture_content_tree(tmp_path):
     """A small content folder: nested good/bad files plus files to ignore."""
     nested = tmp_path / "a" / "b"
     nested.mkdir(parents=True)
-    shutil.copy(GOOD_BES, tmp_path / "good.bes")
-    shutil.copy(GOOD_OJO, nested / "good.ojo")
-    shutil.copy(BAD_BES, nested / "bad.bes")
-    shutil.copy(BAD_BES, tmp_path / "UPPER.BES")  # extension match ignores case
+    shutil.copy(paths.GOOD_BES, tmp_path / "good.bes")
+    shutil.copy(paths.GOOD_OJO, nested / "good.ojo")
+    shutil.copy(paths.BAD_BES, nested / "bad.bes")
+    shutil.copy(paths.BAD_BES, tmp_path / "UPPER.BES")  # extension match ignores case
     (tmp_path / "notes.xml").write_text("<not even close")  # not scanned
     (tmp_path / "readme.txt").write_text("ignore me")  # not scanned
     return tmp_path
@@ -408,7 +399,7 @@ def test_validate_all_files_prints_report_per_failing_file(content_tree, capsys)
 
 
 def test_validate_all_files_single_string_extension(content_tree):
-    """file_extensions can be a single str, as str.endswith allows."""
+    """The file_extensions argument can be a single str, as str.endswith allows."""
     assert vbx.validate_all_files(str(content_tree), ".ojo") == 0
     assert vbx.validate_all_files(str(content_tree), ".bes") == 2
 
@@ -424,7 +415,7 @@ def test_validate_all_files_skips_git_folder(content_tree, monkeypatch):
     """Files under .git are not scanned when scanning from the cwd."""
     git_dir = content_tree / ".git" / "objects"
     git_dir.mkdir(parents=True)
-    shutil.copy(BAD_BES, git_dir / "bad.bes")
+    shutil.copy(paths.BAD_BES, git_dir / "bad.bes")
     monkeypatch.chdir(content_tree)
 
     assert vbx.validate_all_files() == 2
@@ -437,7 +428,7 @@ def test_validate_all_files_skips_git_folder(content_tree, monkeypatch):
 
 
 def test_main_exit_code_is_error_count(content_tree):
-    """main() exits with the number of failing files."""
+    """Calling main() exits with the number of failing files."""
     with pytest.raises(SystemExit) as wrapped_error:
         vbx.main(str(content_tree))
     assert wrapped_error.value.code == 2
@@ -447,7 +438,7 @@ def run_cli(cwd):
     """Run `python -m validate_bes_xml` from cwd using the local src."""
     env = dict(os.environ)
     env["PYTHONPATH"] = (
-        os.path.join(REPO_ROOT, "src") + os.pathsep + env.get("PYTHONPATH", "")
+        os.path.join(paths.REPO_ROOT, "src") + os.pathsep + env.get("PYTHONPATH", "")
     )
     return subprocess.run(
         [sys.executable, "-m", "validate_bes_xml"],
