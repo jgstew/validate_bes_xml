@@ -7,6 +7,7 @@ tests/conftest.py puts the local src first on sys.path.
 import os.path
 import shutil
 
+import example_paths
 import lxml.etree  # pylint: disable=import-error
 import pytest
 from example_paths import BAD_EXAMPLES_DIR, GOOD_EXAMPLES_DIR, SCHEMAS_DIR
@@ -112,6 +113,8 @@ def test_bad_site_files_are_invalid(file_name, schema, line, message):
     )
     assert result.status is Status.INVALID
     assert schema_name(result) == schema
+    # one error, so the fixture doesn't also fail for an unintended reason
+    assert len(result.errors) == 1
     assert result.errors[0][0] == line
     assert message in result.errors[0][1]
 
@@ -156,13 +159,36 @@ def test_sitemap_named_site_xml_has_no_schema():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("root", ["site", "digest", "siteconfig", "SITE"])
-def test_wrong_case_root_gets_a_schema_error(root):
+@pytest.mark.parametrize(
+    "root, schema",
+    [
+        ("site", "Site.xsd"),
+        ("digest", "Digest.xsd"),
+        ("siteconfig", "SiteConfig.xsd"),
+        ("SITE", "Site.xsd"),
+    ],
+)
+def test_wrong_case_root_gets_a_schema_error(root, schema):
     """A root tag in the wrong case finds its schema, which then rejects it."""
     result = validate_text("<%s/>" % root)
     assert result.status is Status.INVALID
-    assert schema_name(result) is not None
+    assert schema_name(result) == schema
     assert "No matching global declaration" in result.errors[0][1]
+
+
+def test_eclipse_update_site_xml_is_invalid_not_no_schema():
+    """
+    An Eclipse update-site site.xml has a lowercase <site> root, so it is invalid.
+
+    This follows from matching names without regard to case, as chosen in
+    #19. A tool that skips no_schema files must exclude these some other way.
+    """
+    result = validate_bes_xml.validate_bes(
+        xml='<site><feature url="f.jar" id="a" version="1.0"/></site>',
+        filename="site.xml",
+    )
+    assert result.status is Status.INVALID
+    assert schema_name(result) == "Site.xsd"
 
 
 def test_lowercase_schema_location_finds_the_bundled_schema():
@@ -252,9 +278,44 @@ def test_infer_xml_schema_still_returns_the_attribute():
     assert validate_bes_xml.infer_xml_schema(tree) == "mine.xsd"
 
 
-def test_ojo_name_does_not_fall_back():
-    """The .ojo rule names one schema, with no root-tag fallback."""
-    besojo_less = [os.path.join(SCHEMAS_DIR, "BES.xsd")]
-    result = validate_text("<BES/>", filename="x.ojo", schema_pathnames=besojo_less)
+@pytest.mark.parametrize(
+    "filename, inferred_schema",
+    [("x.ojo", "BESOJO.xsd"), ("x.BESDomain", "BESDomain.xsd")],
+)
+def test_file_name_rules_do_not_fall_back(filename, inferred_schema):
+    """The .ojo / .BESDomain rules name one schema, with no root-tag fallback."""
+    only_bes = [os.path.join(SCHEMAS_DIR, "BES.xsd")]
+    result = validate_text("<BES/>", filename=filename, schema_pathnames=only_bes)
     assert result.status is Status.NO_SCHEMA
-    assert result.inferred_schema == "BESOJO.xsd"
+    assert result.inferred_schema == inferred_schema
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "/repos/my.ojo.content/siteConfig.xml",
+        "repos/foo.BESDomain/Fixlets/siteConfig.xml",
+        "C:\\repos\\my.ojo.content\\siteConfig.xml",
+    ],
+)
+def test_file_name_rules_ignore_folder_names(filename):
+    """Only the file name picks BESOJO.xsd or BESDomain.xsd, not a folder."""
+    result = validate_text(
+        "<SiteConfig><BesFileDir>Fixlets</BesFileDir></SiteConfig>",
+        filename=filename,
+    )
+    assert result.status is Status.VALID
+    assert schema_name(result) == "SiteConfig.xsd"
+
+
+def test_bes_with_unknown_schema_location_falls_back_to_bes_xsd():
+    """<BES xsi:noNamespaceSchemaLocation="mine.xsd"> used to have no schema."""
+    with open(example_paths.GOOD_BES, encoding="utf-8") as file_obj:
+        text = file_obj.read()
+    old_location = 'xsi:noNamespaceSchemaLocation="BES.xsd"'
+    assert old_location in text
+    text = text.replace(old_location, 'xsi:noNamespaceSchemaLocation="mine.xsd"', 1)
+    result = validate_text(text)
+    assert result.status is Status.VALID
+    assert schema_name(result) == "BES.xsd"
+    assert result.inferred_schema == "BES.xsd"
