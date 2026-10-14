@@ -126,17 +126,34 @@ def _schema_file_name(inferred_schema_name):
     return inferred_schema_name.replace("\\", "/").rsplit("/", 1)[-1]
 
 
+def _schema_candidates(xml_doc_obj):
+    """
+    Return the schema names to try for a parsed document, in order.
+
+    First the .xsd a root tag attribute names, if any, then the root tag's own
+    name, so a schema location that doesn't match still finds <SiteConfig>.
+    """
+    names = [infer_xml_schema(xml_doc_obj)]
+    root_schema = xml_doc_obj.getroot().tag + ".xsd"
+    if root_schema not in names:
+        names.append(root_schema)
+    return names
+
+
 def _select_schema(schema_pathnames, inferred_schema_name):
     """
     Return the schema whose file name is inferred_schema_name, or None.
 
+    Names match without regard to case, so siteConfig.xsd finds SiteConfig.xsd.
     The bundled copy wins over any other with the same name, such as one in the
     cwd. Otherwise the first path in sorted order wins, so the choice doesn't
     depend on the iteration order of a set.
     """
-    wanted_name = _schema_file_name(inferred_schema_name)
+    wanted_name = _schema_file_name(inferred_schema_name).lower()
     matches = sorted(
-        schema for schema in schema_pathnames if os.path.basename(schema) == wanted_name
+        schema
+        for schema in schema_pathnames
+        if os.path.basename(schema).lower() == wanted_name
     )
     for schema in matches:
         if _is_bundled_schema(schema):
@@ -373,12 +390,20 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
 
     lower_filename = (filename or "").lower()
     if ".ojo" in lower_filename:
-        inferred_schema_name = "BESOJO.xsd"
+        candidates = ["BESOJO.xsd"]
     elif ".besdomain" in lower_filename:
-        inferred_schema_name = "BESDomain.xsd"
+        candidates = ["BESDomain.xsd"]
     else:
-        inferred_schema_name = infer_xml_schema(xml_doc_obj)
-    inferred_schema_path = _select_schema(schema_pathnames, inferred_schema_name)
+        candidates = _schema_candidates(xml_doc_obj)
+
+    # use the first name that has a schema; with none, report the first name
+    inferred_schema_name = candidates[0]
+    inferred_schema_path = None
+    for candidate in candidates:
+        inferred_schema_path = _select_schema(schema_pathnames, candidate)
+        if inferred_schema_path:
+            inferred_schema_name = candidate
+            break
     wanted_name = _schema_file_name(inferred_schema_name)
 
     if not inferred_schema_path:
