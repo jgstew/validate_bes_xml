@@ -21,22 +21,25 @@ sys.path.append(
 # reverse the order so we make sure to get the local src module, not pip package
 sys.path.reverse()
 
+import example_paths  # pylint: disable=wrong-import-position
 import lxml.etree  # pylint: disable=import-error,wrong-import-position
-from example_paths import (  # pylint: disable=wrong-import-position
-    BAD_EXAMPLES_DIR,
-    BUNDLED_SCHEMAS,
-    GOOD_EXAMPLES_DIR,
-    REPO_ROOT,
-    SCHEMAS_DIR,
-)
 
 import validate_bes_xml  # pylint: disable=import-error,wrong-import-position
 
 vbx = validate_bes_xml.validate_bes_xml
 
+REPO_ROOT = example_paths.REPO_ROOT
+GOOD_EXAMPLES_DIR = example_paths.GOOD_EXAMPLES_DIR
+BAD_EXAMPLES_DIR = example_paths.BAD_EXAMPLES_DIR
+SCHEMAS_DIR = example_paths.SCHEMAS_DIR
+BUNDLED_SCHEMAS = example_paths.BUNDLED_SCHEMAS
 
 GOOD_EXAMPLE_FILES = sorted(glob.glob(os.path.join(GOOD_EXAMPLES_DIR, "*")))
 BAD_EXAMPLE_FILES = sorted(glob.glob(os.path.join(BAD_EXAMPLES_DIR, "*")))
+# the files validate_all_files() and main() scan by default
+CLI_EXTENSIONS = (".bes", ".ojo")
+GOOD_CLI_FILES = [f for f in GOOD_EXAMPLE_FILES if f.lower().endswith(CLI_EXTENSIONS)]
+BAD_CLI_FILES = [f for f in BAD_EXAMPLE_FILES if f.lower().endswith(CLI_EXTENSIONS)]
 
 
 # ---------------------------------------------------------------------------
@@ -416,7 +419,7 @@ def test_validate_all_files_good_folder_has_no_errors():
 
 def test_validate_all_files_bad_folder_all_errors():
     """Scanning only the 'bad' examples folder should report all as errors."""
-    assert vbx.validate_all_files(BAD_EXAMPLES_DIR) == len(BAD_EXAMPLE_FILES)
+    assert vbx.validate_all_files(BAD_EXAMPLES_DIR) == len(BAD_CLI_FILES)
 
 
 def test_validate_all_files_respects_file_extensions():
@@ -431,7 +434,7 @@ def test_validate_all_files_reports_correct_totals(capsys):
     """The printed summary line should reflect files scanned and errors found."""
     vbx.validate_all_files(GOOD_EXAMPLES_DIR)
     captured = capsys.readouterr()
-    expected = f"{0} errors found in {len(GOOD_EXAMPLE_FILES)} xml files"
+    expected = f"{0} errors found in {len(GOOD_CLI_FILES)} xml files"
     assert expected in captured.out
 
 
@@ -509,7 +512,7 @@ def test_main_bad_folder_exit_code_matches_error_count():
     """Main() against only bad examples should exit with the error count."""
     with pytest.raises(SystemExit) as wrapped_error:
         vbx.main(BAD_EXAMPLES_DIR)
-    assert wrapped_error.value.code == len(BAD_EXAMPLE_FILES)
+    assert wrapped_error.value.code == len(BAD_CLI_FILES)
 
 
 def test_main_custom_file_extensions():

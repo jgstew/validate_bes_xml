@@ -19,8 +19,9 @@ UNCOMPILABLE_XSD = (
     "</xs:schema>"
 )
 
+# the root tag must not match either, since #19 falls back to it
 XSI_LOCATION = (
-    b'<BES xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+    b'<Foo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
     b'xsi:noNamespaceSchemaLocation="mine.xsd"/>'
 )
 
