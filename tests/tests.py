@@ -33,8 +33,13 @@ else:
     assert "src" in validate_bes_xml.__file__
 
 
-# must be 4 valid schema files:
-assert len(validate_bes_xml.validate_bes_xml.find_schema_files()) == 4
+# every bundled schema must be found and compile:
+SCHEMAS_DIR = os.path.join(os.path.dirname(validate_bes_xml.__file__), "schemas")
+BUNDLED_SCHEMAS = [name for name in os.listdir(SCHEMAS_DIR) if name.endswith(".xsd")]
+assert len(BUNDLED_SCHEMAS) == 8
+assert len(validate_bes_xml.validate_bes_xml.find_schema_files()) == len(
+    BUNDLED_SCHEMAS
+)
 
 # run the script
 num_errors = validate_bes_xml.validate_bes_xml.validate_all_files()

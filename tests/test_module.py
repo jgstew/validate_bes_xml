@@ -21,19 +21,25 @@ sys.path.append(
 # reverse the order so we make sure to get the local src module, not pip package
 sys.path.reverse()
 
+import example_paths  # pylint: disable=wrong-import-position
 import lxml.etree  # pylint: disable=import-error,wrong-import-position
 
 import validate_bes_xml  # pylint: disable=import-error,wrong-import-position
 
 vbx = validate_bes_xml.validate_bes_xml
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GOOD_EXAMPLES_DIR = os.path.join(REPO_ROOT, "tests", "examples", "good")
-BAD_EXAMPLES_DIR = os.path.join(REPO_ROOT, "tests", "examples", "bad")
-SCHEMAS_DIR = os.path.join(REPO_ROOT, "src", "validate_bes_xml", "schemas")
+REPO_ROOT = example_paths.REPO_ROOT
+GOOD_EXAMPLES_DIR = example_paths.GOOD_EXAMPLES_DIR
+BAD_EXAMPLES_DIR = example_paths.BAD_EXAMPLES_DIR
+SCHEMAS_DIR = example_paths.SCHEMAS_DIR
+BUNDLED_SCHEMAS = example_paths.BUNDLED_SCHEMAS
 
 GOOD_EXAMPLE_FILES = sorted(glob.glob(os.path.join(GOOD_EXAMPLES_DIR, "*")))
 BAD_EXAMPLE_FILES = sorted(glob.glob(os.path.join(BAD_EXAMPLES_DIR, "*")))
+# the files validate_all_files() and main() scan by default
+CLI_EXTENSIONS = (".bes", ".ojo")
+GOOD_CLI_FILES = [f for f in GOOD_EXAMPLE_FILES if f.lower().endswith(CLI_EXTENSIONS)]
+BAD_CLI_FILES = [f for f in BAD_EXAMPLE_FILES if f.lower().endswith(CLI_EXTENSIONS)]
 
 
 # ---------------------------------------------------------------------------
@@ -67,8 +73,24 @@ def test_example_fixtures_exist():
 
 
 def test_schemas_found():
-    """Must be 4 valid schema files:"""
-    assert len(vbx.find_schema_files()) == 4
+    """Every bundled schema is found and compiles."""
+    found = {os.path.basename(path) for path in vbx.find_schema_files()}
+    assert found >= BUNDLED_SCHEMAS
+    assert len(vbx.find_schema_files()) == len(BUNDLED_SCHEMAS)
+
+
+def test_bundled_schemas():
+    """The package ships these schemas, named after their root elements."""
+    assert BUNDLED_SCHEMAS == {
+        "BES.xsd",
+        "BESAPI.xsd",
+        "BESDomain.xsd",
+        "BESOJO.xsd",
+        "Digest.xsd",
+        "Site.xsd",
+        "SiteConfig.xsd",
+        "SoftwareIdentityCatalog.xsd",
+    }
 
 
 def test_schemas_found_are_files_ending_in_xsd():
@@ -87,12 +109,12 @@ def test_find_schema_files_nonexistent_folder(tmp_path):
     """A folder_path that doesn't exist should be ignored, not raise."""
     bogus_folder = str(tmp_path / "does_not_exist")
     assert not os.path.isdir(bogus_folder)
-    assert len(vbx.find_schema_files(bogus_folder)) == 4
+    assert len(vbx.find_schema_files(bogus_folder)) == len(BUNDLED_SCHEMAS)
 
 
 def test_find_schema_files_dedupes_module_schema_dir():
     """Passing the real schemas folder again should not create duplicates."""
-    assert len(vbx.find_schema_files(SCHEMAS_DIR)) == 4
+    assert len(vbx.find_schema_files(SCHEMAS_DIR)) == len(BUNDLED_SCHEMAS)
 
 
 def test_find_schema_files_ignores_invalid_xsd(tmp_path, capsys):
@@ -105,8 +127,8 @@ def test_find_schema_files_ignores_invalid_xsd(tmp_path, capsys):
     captured = capsys.readouterr()
     assert "did not parse" in captured.err
     assert str(bad_xsd) not in result
-    # the 4 real schemas (found via the module's own directory) are still there
-    assert len(result) == 4
+    # the bundled schemas (found via the module's own directory) are still there
+    assert len(result) == len(BUNDLED_SCHEMAS)
 
 
 def test_find_schema_files_warning_not_on_stdout(tmp_path, capsys):
@@ -127,7 +149,7 @@ def test_find_schema_files_skips_malformed_xsd(tmp_path, capsys):
 
     assert "did not parse" in capsys.readouterr().err
     assert str(broken_xsd) not in result
-    assert len(result) == 4
+    assert len(result) == len(BUNDLED_SCHEMAS)
 
 
 def test_find_schema_files_skips_unreadable_xsd(tmp_path, capsys):
@@ -139,7 +161,7 @@ def test_find_schema_files_skips_unreadable_xsd(tmp_path, capsys):
 
     assert "did not parse" in capsys.readouterr().err
     assert str(unreadable_xsd) not in result
-    assert len(result) == 4
+    assert len(result) == len(BUNDLED_SCHEMAS)
 
 
 def test_import_with_malformed_xsd_in_cwd(tmp_path):
@@ -173,7 +195,7 @@ def test_find_schema_files_includes_valid_extra_schema(tmp_path):
     result = vbx.find_schema_files(str(tmp_path))
 
     assert str(extra_schema) in result
-    assert len(result) == 5
+    assert len(result) == len(BUNDLED_SCHEMAS) + 1
 
 
 def test_find_schema_files_scans_schemas_subfolder(tmp_path):
@@ -397,7 +419,7 @@ def test_validate_all_files_good_folder_has_no_errors():
 
 def test_validate_all_files_bad_folder_all_errors():
     """Scanning only the 'bad' examples folder should report all as errors."""
-    assert vbx.validate_all_files(BAD_EXAMPLES_DIR) == len(BAD_EXAMPLE_FILES)
+    assert vbx.validate_all_files(BAD_EXAMPLES_DIR) == len(BAD_CLI_FILES)
 
 
 def test_validate_all_files_respects_file_extensions():
@@ -412,7 +434,7 @@ def test_validate_all_files_reports_correct_totals(capsys):
     """The printed summary line should reflect files scanned and errors found."""
     vbx.validate_all_files(GOOD_EXAMPLES_DIR)
     captured = capsys.readouterr()
-    expected = f"{0} errors found in {len(GOOD_EXAMPLE_FILES)} xml files"
+    expected = f"{0} errors found in {len(GOOD_CLI_FILES)} xml files"
     assert expected in captured.out
 
 
@@ -490,7 +512,7 @@ def test_main_bad_folder_exit_code_matches_error_count():
     """Main() against only bad examples should exit with the error count."""
     with pytest.raises(SystemExit) as wrapped_error:
         vbx.main(BAD_EXAMPLES_DIR)
-    assert wrapped_error.value.code == len(BAD_EXAMPLE_FILES)
+    assert wrapped_error.value.code == len(BAD_CLI_FILES)
 
 
 def test_main_custom_file_extensions():

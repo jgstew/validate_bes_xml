@@ -26,9 +26,6 @@ import validate_bes_xml  # pylint: disable=import-error
 vbx = validate_bes_xml.validate_bes_xml
 
 
-BUNDLED_SCHEMAS = {"BES.xsd", "BESAPI.xsd", "BESDomain.xsd", "BESOJO.xsd"}
-
-
 def read_bytes(file_path):
     """Return the raw bytes of a file."""
     with open(file_path, "rb") as file_obj:
@@ -143,7 +140,7 @@ def test_schema_files_is_set_of_str_paths():
     for schema_path in vbx.SCHEMA_FILES:
         assert isinstance(schema_path, str)
         assert os.path.isabs(schema_path)
-    assert {os.path.basename(s) for s in vbx.SCHEMA_FILES} == BUNDLED_SCHEMAS
+    assert {os.path.basename(s) for s in vbx.SCHEMA_FILES} == paths.BUNDLED_SCHEMAS
 
 
 def test_find_schema_files_picks_up_cwd(tmp_path, monkeypatch):
@@ -157,7 +154,7 @@ def test_find_schema_files_picks_up_cwd(tmp_path, monkeypatch):
 
     found = {os.path.basename(s) for s in vbx.find_schema_files()}
 
-    assert found == BUNDLED_SCHEMAS | {"CwdExtra.xsd", "Sub.xsd"}
+    assert found == paths.BUNDLED_SCHEMAS | {"CwdExtra.xsd", "Sub.xsd"}
 
 
 def test_find_schema_files_matches_xsd_extension_case_insensitively(tmp_path):

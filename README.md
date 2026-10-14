@@ -2,9 +2,11 @@
 
 A python module for validating BigFix XML files and content.
 
-Validates `.bes` and `.ojo` files against the official BigFix XML schemas
-(bundled with the module) and reports what is wrong and where when a file
-does not validate. Useful locally and as a CI check for repositories of
+Validates `.bes` and `.ojo` files, Git External Custom Site files
+(`siteConfig.xml`, `site.xml`, `digest.xml`) and BigFix Inventory
+signatures against the official BigFix XML schemas (bundled with the
+module), and reports what is wrong and where when a file does not
+validate. Useful locally and as a CI check for repositories of
 BigFix content.
 
 ## How it works
@@ -17,7 +19,8 @@ For each XML file, the validator:
    - `.BESDomain` in the file name (any case) -> `BESDomain.xsd`
    - an attribute on the root tag referencing an `.xsd` file
      (e.g. `xsi:noNamespaceSchemaLocation="BES.xsd"`)
-   - the name of the root tag itself (e.g. `<BES>` -> `BES.xsd`)
+   - the name of the root tag itself (e.g. `<BES>` -> `BES.xsd`), also
+     used when the attribute names an `.xsd` that isn't available
 3. Validates the file against that schema and prints the line number and
    reason for every schema violation found.
 
@@ -27,11 +30,22 @@ Bundled schemas:
 - `BESAPI.xsd` - BigFix REST API XML
 - `BESOJO.xsd` - Wizards / Dashboards (`.ojo` files)
 - `BESDomain.xsd` - Domain content
+- `SiteConfig.xsd`, `Site.xsd`, `Digest.xsd` - Git External Custom Site
+  `siteConfig.xml`, `site.xml` and `digest.xml`
+- `SoftwareIdentityCatalog.xsd` - BigFix Inventory signatures
+
+The site and signature schemas come from
+[bigfix/RepositorySiteExample](https://github.com/bigfix/RepositorySiteExample)
+and [bigfix/CommunityContent](https://github.com/bigfix/CommunityContent),
+renamed to match their root elements. See
+[`THIRD_PARTY_NOTICES.md`](src/validate_bes_xml/schemas/THIRD_PARTY_NOTICES.md)
+for each source, commit and license.
 
 Additional `.xsd` files placed in the current working directory
 (or a `schemas` subfolder of it) are picked up automatically.
-A schema is matched by its exact file name, and the bundled copy is always
-used over another file with the same name. An `.xsd` that cannot be read or
+A schema is matched by its file name, ignoring case (so `siteConfig.xsd`
+finds `SiteConfig.xsd`), and the bundled copy is always used over another
+file with the same name. An `.xsd` that cannot be read or
 parsed is skipped with a warning on stderr.
 
 ## Requirements
@@ -61,6 +75,10 @@ subfolders (excluding `.git`):
 ```sh
 python -m validate_bes_xml
 ```
+
+The command line does not scan `.xml` files, since most XML in a
+repository is not BigFix content. Validate site files and signatures from
+Python, with `validate_xml()` or `validate_bes()`.
 
 The exit code is the number of files that failed validation, so `0` means
 everything validated. This makes it easy to use as a CI check:

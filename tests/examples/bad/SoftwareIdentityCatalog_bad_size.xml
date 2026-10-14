@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- an invented signature, for tests only -->
+<SoftwareIdentityCatalog exportTimeStamp="2026-10-14T12:00:00Z">
+  <Software name="Example Tool" vendor="Example Vendor" uniqueId="0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0" version="1.2.3">
+    <Signature uniqueId="1a2b3c4d-5e6f-7081-92a3-b4c5d6e7f809" modified="2026-10-14T12:00:00Z" created="2026-10-14T12:00:00Z">
+      <AND>
+        <OR>
+          <File name="exampletool.exe" size="12a" version="1.2.3"/>
+        </OR>
+        <OR>
+          <PackageFilter name="example-tool" vendor="Example Vendor" version="1.2.3"/>
+        </OR>
+      </AND>
+    </Signature>
+  </Software>
+</SoftwareIdentityCatalog>
