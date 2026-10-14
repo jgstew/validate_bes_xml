@@ -120,10 +120,11 @@ def _is_bundled_schema(schema_path):
     return os.path.normcase(schema_dir) == os.path.normcase(_BUNDLED_SCHEMAS_DIR)
 
 
-def _schema_file_name(inferred_schema_name):
-    """Return the bare file name of an inferred schema name."""
-    # the inferred name can come from a root tag attribute, which may hold a path
-    return inferred_schema_name.replace("\\", "/").rsplit("/", 1)[-1]
+def _bare_file_name(name):
+    """Return the part of a path after the last / or \\, on any OS."""
+    # an inferred schema name can come from a root tag attribute, which may
+    # hold a path, and a filename= may be a Windows path on another OS
+    return name.replace("\\", "/").rsplit("/", 1)[-1]
 
 
 def _schema_candidates(xml_doc_obj):
@@ -149,7 +150,7 @@ def _select_schema(schema_pathnames, inferred_schema_name):
     cwd. Otherwise the first path in sorted order wins, so the choice doesn't
     depend on the iteration order of a set.
     """
-    wanted_name = _schema_file_name(inferred_schema_name).lower()
+    wanted_name = _bare_file_name(inferred_schema_name).lower()
     matches = sorted(
         schema
         for schema in schema_pathnames
@@ -388,7 +389,8 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
     if filename is None:
         filename = source_name
 
-    lower_filename = (filename or "").lower()
+    # only the file name counts, not a folder such as my.ojo.content/
+    lower_filename = _bare_file_name(filename or "").lower()
     if ".ojo" in lower_filename:
         candidates = ["BESOJO.xsd"]
     elif ".besdomain" in lower_filename:
@@ -404,7 +406,7 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
         if inferred_schema_path:
             inferred_schema_name = candidate
             break
-    wanted_name = _schema_file_name(inferred_schema_name)
+    wanted_name = _bare_file_name(inferred_schema_name)
 
     if not inferred_schema_path:
         message = "no schema to validate %s (inferred schema name: %s)" % (
