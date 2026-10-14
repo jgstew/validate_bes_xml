@@ -131,6 +131,34 @@ the path, or to the `.name` of an open file.
 - `schema`: path of the schema that was used, or `None` when the XML did not
   parse or no bundled schema matched
 - `errors`: list of `(line, message)` tuples; `line` is `None` when unknown
+- `status`: a `validate_bes_xml.Status`, one of the values below
+- `inferred_schema`: the schema file name that was looked up, such as
+  `"BES.xsd"`, set whenever the XML parsed (even if no schema matched), else
+  `None`
+
+| `status` | Meaning |
+| --- | --- |
+| `"valid"` | parsed, and passed the schema |
+| `"invalid"` | parsed, and failed the schema |
+| `"syntax_error"` | not well-formed XML |
+| `"no_schema"` | parsed, but no schema matched `inferred_schema` |
+| `"error"` | anything else: unreadable file, no root element, or a schema that failed to compile |
+
+`Status` members compare equal to their string values, so
+`result.status == "no_schema"` and `result.status is Status.NO_SCHEMA` both
+work. Only `"valid"` is truthy: a `"no_schema"` result is falsy, as before.
+To treat "no schema applies" as validity unknown instead of invalid, check
+`status`, not whether `line` is `None`:
+
+```python
+from validate_bes_xml import Status, validate_bes
+
+result = validate_bes(raw_bytes)
+if result.status is Status.NO_SCHEMA:
+    print("no schema for", result.inferred_schema)
+elif not result:
+    print(result.status, result.errors)
+```
 
 Each `.xsd` is compiled once per process and reused.
 
