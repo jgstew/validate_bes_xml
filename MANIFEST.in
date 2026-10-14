@@ -1,1 +1,2 @@
 include src/validate_bes_xml/schemas/*.xsd
+include src/validate_bes_xml/schemas/THIRD_PARTY_NOTICES.md
