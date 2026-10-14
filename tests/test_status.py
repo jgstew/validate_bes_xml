@@ -4,11 +4,10 @@ Tests for ValidationResult.status and .inferred_schema (issue #17, step 2).
 tests/conftest.py puts the local src first on sys.path.
 """
 
-import concurrent.futures
 import json
 
 import pytest
-from result_cases import CASE_IDS, CASES
+from result_cases import CASE_IDS, CASES, serial_and_concurrent_results
 
 import validate_bes_xml  # pylint: disable=import-error
 
@@ -190,21 +189,9 @@ def test_no_schema_is_falsy():
 
 def test_concurrent_statuses_match_serial_statuses(tmp_path):
     """Validating in threads gives the same status and errors as serially."""
-    kwargs_list = [
-        make_kwargs(tmp_path)
-        for case_id, make_kwargs in CASES
-        if case_id in ("valid_bes", "schema_invalid", "unknown_root", "truncated")
-    ]
-    expected = [
-        (result.status, result.inferred_schema, result.errors)
-        for result in (validate_bes_xml.validate_bes(**kw) for kw in kwargs_list)
-    ]
-    jobs = kwargs_list * 25
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        results = list(
-            executor.map(lambda kw: validate_bes_xml.validate_bes(**kw), jobs)
-        )
-    for index, result in enumerate(results):
-        assert (result.status, result.inferred_schema, result.errors) == expected[
-            index % len(kwargs_list)
-        ]
+    serial, concurrent_results = serial_and_concurrent_results(tmp_path)
+    for index, result in enumerate(concurrent_results):
+        alone = serial[index % len(serial)]
+        assert result.status is alone.status
+        assert result.inferred_schema == alone.inferred_schema
+        assert result.errors == alone.errors

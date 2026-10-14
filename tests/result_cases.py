@@ -5,8 +5,12 @@ Each case is (case_id, make_kwargs). make_kwargs(tmp_path) returns the keyword
 arguments for validate_bes(), so cases that need files on disk can build them.
 """
 
+import concurrent.futures
+
 import lxml.etree  # pylint: disable=import-error
 from example_paths import GOOD_BES
+
+import validate_bes_xml  # pylint: disable=import-error
 
 # a schema that is well-formed XML but does not compile: the type does not exist
 UNCOMPILABLE_XSD = (
@@ -73,3 +77,30 @@ CASES = [
 ]
 
 CASE_IDS = [case_id for case_id, _ in CASES]
+
+
+# a mix of valid, invalid, no-schema and syntax-error inputs
+CONCURRENT_CASE_IDS = ("valid_bes", "schema_invalid", "unknown_root", "truncated")
+
+
+def serial_and_concurrent_results(tmp_path, repeat=25, workers=8):
+    """
+    Validate a mix of inputs one at a time, then repeatedly in a thread pool.
+
+    Returns (serial, concurrent): serial has one result per input, and
+    concurrent[i] is the threaded result for the input serial[i % len(serial)].
+    """
+    kwargs_list = [
+        make_kwargs(tmp_path)
+        for case_id, make_kwargs in CASES
+        if case_id in CONCURRENT_CASE_IDS
+    ]
+    serial = [validate_bes_xml.validate_bes(**kwargs) for kwargs in kwargs_list]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+        concurrent_results = list(
+            executor.map(
+                lambda kwargs: validate_bes_xml.validate_bes(**kwargs),
+                kwargs_list * repeat,
+            )
+        )
+    return serial, concurrent_results
