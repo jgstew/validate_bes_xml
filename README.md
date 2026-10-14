@@ -146,7 +146,10 @@ the path, or to the `.name` of an open file.
 
 `Status` members compare equal to their string values, so
 `result.status == "no_schema"` and `result.status is Status.NO_SCHEMA` both
-work. Only `"valid"` is truthy: a `"no_schema"` result is falsy, as before.
+work. Only a result with status `"valid"` is truthy: a `"no_schema"` result
+is falsy, as before. Test the result, not `result.status`, since every
+`Status` member is a non-empty string and so is itself truthy.
+
 To treat "no schema applies" as validity unknown instead of invalid, check
 `status`, not whether `line` is `None`:
 
@@ -159,6 +162,12 @@ if result.status is Status.NO_SCHEMA:
 elif not result:
     print(result.status, result.errors)
 ```
+
+`status` must agree with `valid`: `ValidationResult(valid=True,
+status="invalid")` raises `ValueError`. So to change `valid` with
+`dataclasses.replace()`, also pass `status=None` to derive it again, for
+example `dataclasses.replace(result, valid=True, status=None)`. Setting
+`result.valid` directly does not update `status`.
 
 Each `.xsd` is compiled once per process and reused.
 

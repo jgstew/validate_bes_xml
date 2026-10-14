@@ -4,6 +4,7 @@ Tests for ValidationResult.status and .inferred_schema (issue #17, step 2).
 tests/conftest.py puts the local src first on sys.path.
 """
 
+import io
 import json
 
 import pytest
@@ -64,6 +65,8 @@ def test_status_formats_as_its_value(member):
     assert f"{member}" == member.value
     assert "%s" % member == member.value
     assert json.dumps(member) == '"%s"' % member.value
+    assert "{}".format(member) == member.value
+    assert f"{member:>16}" == "%16s" % member.value
 
 
 def test_every_case_has_a_status():
@@ -124,6 +127,8 @@ def test_schema_and_inferred_schema_by_status(case_id, make_kwargs, tmp_path):
         ({"source": b"<Foo/>"}, "Foo.xsd"),
         # records today's behavior for namespaced roots, not an endorsement
         ({"source": b'<a xmlns="urn:x"/>'}, "{urn:x}a.xsd"),
+        # a "/" in the namespace URI cuts the name, as _select_schema does
+        ({"source": b'<a xmlns="http://example.com/ns"/>'}, "ns}a.xsd"),
         (
             {
                 "source": b'<BES xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
@@ -140,6 +145,7 @@ def test_schema_and_inferred_schema_by_status(case_id, make_kwargs, tmp_path):
     ids=[
         "unknown_root",
         "namespaced_root",
+        "namespace_url_root",
         "xsi_location_path",
         "ojo_filename",
         "besdomain_filename",
@@ -151,6 +157,22 @@ def test_schema_and_inferred_schema_by_status(case_id, make_kwargs, tmp_path):
 def test_inferred_schema(kwargs, inferred_schema):
     """Inferred_schema is the bare schema file name that was looked up."""
     assert validate_bes_xml.validate_bes(**kwargs).inferred_schema == inferred_schema
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        io.TextIOWrapper(io.BytesIO(b"<BES>\xff</BES>"), encoding="utf-8"),
+        "<BES>\ud800</BES>",
+    ],
+    ids=["text_stream_bad_utf8", "str_lone_surrogate"],
+)
+def test_text_that_cannot_be_decoded_is_an_error(source):
+    """Text that fails to decode or encode never reached the XML parser."""
+    result = validate_bes_xml.validate_bes(source)
+    assert result.status is Status.ERROR
+    assert result.errors[0][0] is None
+    assert result.inferred_schema is None
 
 
 def test_constructed_result_derives_status_from_valid():

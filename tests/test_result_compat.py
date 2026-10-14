@@ -136,7 +136,11 @@ def test_verbose_output_for_a_schema_invalid_file(capsys):
     assert lines[0] == "Schema Validation Error in: %s" % BAD_SCHEMA_BES
     assert lines[1].startswith("  validated against schema: ")
     assert os.path.basename(lines[1]) == "BES.xsd"
-    assert lines[2].startswith("  Line 1: Element 'BES': Missing child element(s).")
+    assert lines[2] == (
+        "  Line 1: Element 'BES': Missing child element(s). Expected is one of "
+        "( Fixlet, Task, Analysis, SingleAction, SourcedFixletAction, "
+        "MultipleActionGroup, Baseline, ComputerGroup, CustomSite, ActionSite )."
+    )
     assert len(lines) == 3
 
 
