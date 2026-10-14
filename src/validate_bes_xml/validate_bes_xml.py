@@ -8,6 +8,7 @@
 # pylint: disable=too-many-branches
 
 import dataclasses
+import enum
 import functools
 import io
 import os
@@ -22,6 +23,7 @@ except ImportError:
 
 __all__ = [
     "SCHEMA_FILES",
+    "Status",
     "ValidationResult",
     "find_schema_files",
     "infer_xml_schema",
@@ -118,6 +120,12 @@ def _is_bundled_schema(schema_path):
     return os.path.normcase(schema_dir) == os.path.normcase(_BUNDLED_SCHEMAS_DIR)
 
 
+def _schema_file_name(inferred_schema_name):
+    """Return the bare file name of an inferred schema name."""
+    # the inferred name can come from a root tag attribute, which may hold a path
+    return inferred_schema_name.replace("\\", "/").rsplit("/", 1)[-1]
+
+
 def _select_schema(schema_pathnames, inferred_schema_name):
     """
     Return the schema whose file name is inferred_schema_name, or None.
@@ -126,8 +134,7 @@ def _select_schema(schema_pathnames, inferred_schema_name):
     cwd. Otherwise the first path in sorted order wins, so the choice doesn't
     depend on the iteration order of a set.
     """
-    # the inferred name can come from a root tag attribute, which may hold a path
-    wanted_name = inferred_schema_name.replace("\\", "/").rsplit("/", 1)[-1]
+    wanted_name = _schema_file_name(inferred_schema_name)
     matches = sorted(
         schema for schema in schema_pathnames if os.path.basename(schema) == wanted_name
     )
@@ -135,6 +142,27 @@ def _select_schema(schema_pathnames, inferred_schema_name):
         if _is_bundled_schema(schema):
             return schema
     return matches[0] if matches else None
+
+
+class Status(str, enum.Enum):
+    """Outcome of validate_bes().
+
+    Members compare equal to their string values.
+    """
+
+    VALID = "valid"  # parsed, and passed the schema
+    INVALID = "invalid"  # parsed, and failed the schema
+    SYNTAX_ERROR = "syntax_error"  # not well-formed XML (lxml XMLSyntaxError)
+    NO_SCHEMA = "no_schema"  # parsed, but no schema matched the inferred name
+    # anything else: I/O, no root element, schema compile or validate failure
+    ERROR = "error"
+
+    # a (str, Enum) formats as "Status.VALID" in f-strings on newer Pythons,
+    # so pin str(), f-strings and %s to the bare value on every version
+    def __str__(self):
+        return str(self.value)
+
+    __format__ = str.__format__
 
 
 @dataclasses.dataclass
@@ -145,11 +173,26 @@ class ValidationResult:
     Truthy when valid. `schema` is the path of the schema that was used, or None when
     the XML could not be parsed or no schema matched. `errors` is a list of
     (line, message) tuples for syntax or schema errors; line is None when unknown.
+    `status` is a Status, derived from `valid` when not given. `inferred_schema` is
+    the schema file name that was looked up, or None when the XML did not parse.
     """
 
     valid: bool
     schema: Optional[str] = None
     errors: List[Tuple[Optional[int], str]] = dataclasses.field(default_factory=list)
+    status: Optional[Status] = None
+    inferred_schema: Optional[str] = None
+
+    def __post_init__(self):
+        if self.status is None:
+            self.status = Status.VALID if self.valid else Status.INVALID
+        else:
+            # accept "no_schema" as well as Status.NO_SCHEMA
+            self.status = Status(self.status)
+        if (self.status is Status.VALID) != bool(self.valid):
+            raise ValueError(
+                "status %r contradicts valid=%r" % (self.status.value, self.valid)
+            )
 
     def __bool__(self):
         return self.valid
@@ -305,21 +348,25 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
             print("XML Syntax Error in: %s" % display_name)
             print(err)
         errors = getattr(err, "parse_errors", None) or [(err.lineno, str(err))]
-        return ValidationResult(valid=False, errors=errors)
+        return ValidationResult(valid=False, errors=errors, status=Status.SYNTAX_ERROR)
 
     # check for file IO error
     except OSError:
         if verbose:
             print("Invalid File: %s" % display_name)
         return ValidationResult(
-            valid=False, errors=[(None, "Invalid File: %s" % display_name)]
+            valid=False,
+            errors=[(None, "Invalid File: %s" % display_name)],
+            status=Status.ERROR,
         )
 
     # all other errors
     except Exception as err:
         if verbose:
             print(err)
-        return ValidationResult(valid=False, errors=[(None, str(err))])
+        return ValidationResult(
+            valid=False, errors=[(None, str(err))], status=Status.ERROR
+        )
 
     if filename is None:
         filename = source_name
@@ -332,6 +379,7 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
     else:
         inferred_schema_name = infer_xml_schema(xml_doc_obj)
     inferred_schema_path = _select_schema(schema_pathnames, inferred_schema_name)
+    wanted_name = _schema_file_name(inferred_schema_name)
 
     if not inferred_schema_path:
         message = "no schema to validate %s (inferred schema name: %s)" % (
@@ -340,7 +388,12 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
         )
         if verbose:
             print("WARNING: " + message)
-        return ValidationResult(valid=False, errors=[(None, message)])
+        return ValidationResult(
+            valid=False,
+            errors=[(None, message)],
+            status=Status.NO_SCHEMA,
+            inferred_schema=wanted_name,
+        )
 
     # validate using schema:
     try:
@@ -352,18 +405,33 @@ def _validate(  # pylint: disable=too-many-locals,too-many-statements
         if verbose:
             print(err)
         return ValidationResult(
-            valid=False, schema=inferred_schema_path, errors=[(None, str(err))]
+            valid=False,
+            schema=inferred_schema_path,
+            errors=[(None, str(err))],
+            status=Status.ERROR,
+            inferred_schema=wanted_name,
         )
 
     if is_valid:
-        return ValidationResult(valid=True, schema=inferred_schema_path)
+        return ValidationResult(
+            valid=True,
+            schema=inferred_schema_path,
+            status=Status.VALID,
+            inferred_schema=wanted_name,
+        )
 
     if verbose:
         print("Schema Validation Error in: %s" % display_name)
         print("  validated against schema: %s" % inferred_schema_path)
         for line, message in errors:
             print(f"  Line {line}: {message}")
-    return ValidationResult(valid=False, schema=inferred_schema_path, errors=errors)
+    return ValidationResult(
+        valid=False,
+        schema=inferred_schema_path,
+        errors=errors,
+        status=Status.INVALID,
+        inferred_schema=wanted_name,
+    )
 
 
 def validate_bes(

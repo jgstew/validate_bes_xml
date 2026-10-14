@@ -474,6 +474,8 @@ def test_validate_xml_unsupported_input_prints_error_when_verbose(capsys):
 ORIGINAL_PUBLIC_NAMES = {"SCHEMA_FILES", "find_schema_files", "infer_xml_schema"}
 ORIGINAL_PUBLIC_NAMES |= {"main", "validate_all_files", "validate_xml"}
 EXPECTED_PUBLIC_NAMES = ORIGINAL_PUBLIC_NAMES | {"ValidationResult", "validate_bes"}
+# added in 2.3.0
+EXPECTED_PUBLIC_NAMES |= {"Status"}
 
 
 def test_module_all_lists_public_api():
@@ -492,7 +494,16 @@ def test_import_star_exports_only_public_api():
 
 @pytest.mark.parametrize(
     "name",
-    ["dataclasses", "functools", "io", "threading", "List", "Optional", "Tuple"],
+    [
+        "dataclasses",
+        "enum",
+        "functools",
+        "io",
+        "threading",
+        "List",
+        "Optional",
+        "Tuple",
+    ],
 )
 def test_package_does_not_reexport_implementation_imports(name):
     """Imports used inside the module are not package attributes."""
